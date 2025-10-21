@@ -130,6 +130,7 @@ dmypy.json
 
 # Crypto trading specific
 # Data files (parquet files are large and should be excluded)
+data/
 data/*.parquet
 data/*.csv
 data/*.json
