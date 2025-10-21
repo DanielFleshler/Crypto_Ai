@@ -43,10 +43,12 @@ class BybitDataDownloader:
             '4h': '240',
             '1d': 'D'
         }
-        return timeframe_map.get(timeframe, '60')
+        if timeframe not in timeframe_map:
+            raise ValueError(f"Unsupported timeframe: {timeframe}. Supported: {list(timeframe_map.keys())}")
+        return timeframe_map[timeframe]
     
-    def download_kline_data(self, symbol, interval, start_time, end_time):
-        """Download kline data from Bybit API"""
+    def download_kline_data(self, symbol, interval, start_time, end_time, max_retries=3):
+        """Download kline data from Bybit API with retry logic"""
         params = {
             'category': 'spot',
             'symbol': symbol,
@@ -56,23 +58,34 @@ class BybitDataDownloader:
             'limit': 1000
         }
         
-        try:
-            response = requests.get(self.base_url, params=params)
-            response.raise_for_status()
-            data = response.json()
-            
-            if data['retCode'] == 0:
-                return data['result']['list']
-            else:
-                logger.error(f"API Error for {symbol}: {data['retMsg']}")
+        for attempt in range(max_retries):
+            try:
+                response = requests.get(self.base_url, params=params)
+                response.raise_for_status()
+                data = response.json()
+                
+                if data['retCode'] == 0:
+                    kline_data = data['result']['list']
+                    # Validate data completeness
+                    if len(kline_data) < 100:  # Expected minimum records
+                        logger.warning(f"Partial data received for {symbol}: {len(kline_data)} records")
+                    return kline_data
+                else:
+                    logger.error(f"API Error for {symbol}: {data['retMsg']}")
+                    if attempt < max_retries - 1:
+                        logger.info(f"Retrying {symbol} (attempt {attempt + 2}/{max_retries})")
+                        time.sleep(0.5)  # Brief delay before retry
+                    return []
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Request failed for {symbol} (attempt {attempt + 1}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(1)  # Longer delay for network errors
                 return []
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request failed for {symbol}: {e}")
-            return []
     
     def process_kline_data(self, kline_data):
         """Process and convert kline data to DataFrame"""
         if not kline_data:
+            logger.warning("No kline data provided")
             return pd.DataFrame()
         
         df = pd.DataFrame(kline_data, columns=[
@@ -84,8 +97,17 @@ class BybitDataDownloader:
         
         # Convert price and volume columns to numeric
         numeric_columns = ['open', 'high', 'low', 'close', 'volume', 'turnover']
+        coerced_count = 0
         for col in numeric_columns:
+            original_count = len(df[col])
             df[col] = pd.to_numeric(df[col], errors='coerce')
+            coerced_count += original_count - df[col].count()
+        
+        if coerced_count > 0:
+            logger.warning(f"Coerced {coerced_count} non-numeric values to NaN")
+            if df.isnull().all().any():
+                logger.error("Some columns are entirely NaN after coercion")
+                return pd.DataFrame()  # Return empty DataFrame for invalid data
         
         return df
     
@@ -144,7 +166,7 @@ class BybitDataDownloader:
                     logger.info(f"Downloaded {len(kline_data)} records for {pair} {timeframe} from {current_start.date()} to {chunk_end.date()}")
                 
                 current_start = chunk_end
-                time.sleep(0.1)  # Rate limiting
+                time.sleep(0.05)  # Reduced rate limiting (still respectful)
             
             # Process and save all data
             if all_data:
@@ -172,7 +194,7 @@ class BybitDataDownloader:
                 continue
             
             # Rate limiting between pairs
-            time.sleep(1)
+            time.sleep(0.5)  # Reduced delay between pairs
         
         logger.info("Download completed!")
 

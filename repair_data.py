@@ -24,11 +24,39 @@ class DataRepairer:
         """Create backup of original data before repairs"""
         if os.path.exists(self.backup_dir):
             logger.info(f"Backup directory {self.backup_dir} already exists")
-            return True
+            # Verify backup integrity by checking if it has content
+            try:
+                backup_files = []
+                for root, dirs, files in os.walk(self.backup_dir):
+                    backup_files.extend(files)
+                if len(backup_files) == 0:
+                    logger.warning("Backup directory exists but is empty, recreating...")
+                    shutil.rmtree(self.backup_dir)
+                else:
+                    logger.info(f"Backup verified with {len(backup_files)} files")
+                    return True
+            except Exception as e:
+                logger.error(f"Failed to verify backup integrity: {e}")
+                return False
             
         try:
             shutil.copytree(self.data_dir, self.backup_dir)
             logger.info(f"Created backup at {self.backup_dir}")
+            
+            # Verify backup was created successfully
+            if not os.path.exists(self.backup_dir):
+                logger.error("Backup directory was not created")
+                return False
+                
+            # Check if backup has content
+            backup_files = []
+            for root, dirs, files in os.walk(self.backup_dir):
+                backup_files.extend(files)
+            if len(backup_files) == 0:
+                logger.error("Backup directory is empty")
+                return False
+                
+            logger.info(f"Backup verified with {len(backup_files)} files")
             return True
         except Exception as e:
             logger.error(f"Failed to create backup: {e}")
@@ -97,9 +125,9 @@ class DataRepairer:
             if col in df.columns:
                 negative_count = (df[col] <= 0).sum()
                 if negative_count > 0:
-                    # Replace non-positive values with the previous valid value
+                    # Handle leading zeros with backward fill first, then forward fill
                     df[col] = df[col].replace(0, pd.NA)
-                    df[col] = df[col].fillna(method='ffill')
+                    df[col] = df[col].fillna(method='bfill').fillna(method='ffill')
                     logger.info(f"Fixed {negative_count} non-positive values in {col}")
         
         if 'volume' in df.columns:
@@ -108,11 +136,18 @@ class DataRepairer:
                 # Replace negative volumes with 0
                 df.loc[df['volume'] < 0, 'volume'] = 0
                 logger.info(f"Fixed {negative_volume} negative volumes")
+            
+            # Handle missing volume values
+            missing_volume = df['volume'].isnull().sum()
+            if missing_volume > 0:
+                df['volume'] = df['volume'].fillna(0)  # Replace missing volume with 0
+                logger.info(f"Fixed {missing_volume} missing volume values")
         
         return df
     
     def repair_missing_values(self, df):
         """Handle missing values in the data"""
+        initial_count = len(df)
         missing_counts = df.isnull().sum()
         
         for col, count in missing_counts.items():
@@ -120,11 +155,16 @@ class DataRepairer:
                 if col == 'start_time':
                     # For timestamps, we can't interpolate, so we'll drop these rows
                     df = df.dropna(subset=['start_time'])
-                    logger.info(f"Dropped {count} rows with missing timestamps")
+                    dropped_count = initial_count - len(df)
+                    logger.info(f"Dropped {dropped_count} rows with missing timestamps")
                 else:
                     # For numeric columns, use forward fill
                     df[col] = df[col].fillna(method='ffill')
                     logger.info(f"Forward filled {count} missing values in {col}")
+        
+        final_count = len(df)
+        if initial_count != final_count:
+            logger.info(f"Data repair: {initial_count} -> {final_count} rows (dropped {initial_count - final_count})")
         
         return df
     

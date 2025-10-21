@@ -9,7 +9,7 @@ class ElliottWaveDetector:
     def calculate_fibonacci_retracement(self, s,e)->Dict:
         d=abs(e-s); r={}
         for f in self.fibs['retracement']:
-            r[f'fib_{f}']= e-(e-s)*f if s<e else e+(s-e)*f
+            r[f'fib_{f}']= s+(e-s)*f if s<e else s-(s-e)*f
         return r
 
     def calculate_fibonacci_extension(self,s,e,x)->Dict:
@@ -41,13 +41,14 @@ class ElliottWaveDetector:
             row=swing_df.iloc[i]
             if row['swing_low'] and w1.start_price< w1.end_price:
                 p=row['swing_low_price']
-                if w1.start_price<p<=fibs['fib_0.786']:
+                # Simple retracement check - wave 2 should be between 23.6% and 78.6%
+                if fibs['fib_0.236']<=p<=fibs['fib_0.786']:
                     return ElliottWave(2,'CORRECTIVE',
                                        w1.end_time,df.index[i],
                                        w1.end_price,p,'current',fibs)
             if row['swing_high'] and w1.start_price>w1.end_price:
                 p=row['swing_high_price']
-                if fibs['fib_0.786']<=p<w1.start_price:
+                if fibs['fib_0.786']<=p<=fibs['fib_0.236']:
                     return ElliottWave(2,'CORRECTIVE',
                                        w1.end_time,df.index[i],
                                        w1.end_price,p,'current',fibs)
@@ -59,15 +60,16 @@ class ElliottWaveDetector:
         idx=df.index.get_loc(w2.end_time)
         for i in range(idx+1,min(idx+100,len(df))):
             row=swing_df.iloc[i]
-            if row['swing_high'] and w2.end_price> w2.start_price:
+            if row['swing_high'] and w1.start_price < w1.end_price:
                 p=row['swing_high_price']
-                if p> w1.end_price and exts['ext_1.272']<=p<=exts['ext_2.618']:
+                # Wave 3 should be higher than wave 1 end, but more flexible
+                if p > w2.end_price and p >= w1.end_price * 0.99:
                     return ElliottWave(3,'IMPULSE',
                                        w2.end_time,df.index[i],
                                        w2.end_price,p,'current',exts)
-            if row['swing_low'] and w2.end_price< w2.start_price:
+            if row['swing_low'] and w1.start_price > w1.end_price:
                 p=row['swing_low_price']
-                if p< w1.end_price and exts['ext_1.272']>=p>=exts['ext_2.618']:
+                if p < w2.end_price and p <= w1.end_price * 1.01:
                     return ElliottWave(3,'IMPULSE',
                                        w2.end_time,df.index[i],
                                        w2.end_price,p,'current',exts)
@@ -76,6 +78,12 @@ class ElliottWaveDetector:
     def validate_elliott_wave_sequence(self, waves: List[ElliottWave]) -> bool:
         if len(waves)<3: return False
         w1,w2,w3=waves[0],waves[1],waves[2]
-        if w2.end_price <= w1.start_price or w3.end_price <= w1.end_price:
-            return False
-        return True
+        # For bullish sequence: w1 up, w2 down, w3 up
+        if w1.start_price < w1.end_price:  # Bullish wave 1
+            if w2.end_price < w2.start_price and w3.end_price > w3.start_price:  # Corrective w2, impulse w3
+                return True
+        # For bearish sequence: w1 down, w2 up, w3 down
+        elif w1.start_price > w1.end_price:  # Bearish wave 1
+            if w2.end_price > w2.start_price and w3.end_price < w3.start_price:  # Corrective w2, impulse w3
+                return True
+        return False

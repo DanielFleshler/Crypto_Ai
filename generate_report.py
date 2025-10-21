@@ -345,7 +345,7 @@ class ReportGenerator:
         """
         
         report_path = os.path.join(self.output_dir, "verification_report.html")
-        with open(report_path, 'w') as f:
+        with open(report_path, 'w', encoding='utf-8') as f:
             f.write(html_content)
         
         logger.info(f"HTML report saved to: {report_path}")
@@ -389,8 +389,8 @@ class ReportGenerator:
         }
         
         report_path = os.path.join(self.output_dir, "verification_report.json")
-        with open(report_path, 'w') as f:
-            json.dump(report, f, indent=2, default=str)
+        with open(report_path, 'w', encoding='utf-8') as f:
+            json.dump(report, f, indent=2, default=str, ensure_ascii=False)
         
         logger.info(f"JSON report saved to: {report_path}")
         return report_path
@@ -413,6 +413,10 @@ class ReportGenerator:
         # Generate recommendations
         recommendations = self.generate_recommendations(summary, issues)
         
+        # Check for large HTML size warning
+        if len(summary.get('pairs_detail', {})) > 50:
+            logger.warning(f"Large dataset detected: {len(summary.get('pairs_detail', {}))} pairs. HTML report may be large.")
+        
         # Generate reports
         html_path = self.generate_html_report(summary, issues, recommendations)
         json_path = self.generate_json_report(summary, issues, recommendations)
@@ -422,7 +426,19 @@ class ReportGenerator:
         logger.info("=" * 60)
         logger.info(f"HTML Report: {html_path}")
         logger.info(f"JSON Report: {json_path}")
-        logger.info(f"Total Issues Found: {sum(len(v) if isinstance(v, dict) else 0 for v in issues.values())}")
+        # Fix total_issues calculation - properly count nested structures
+        total_issues = 0
+        for category, issue_data in issues.items():
+            if isinstance(issue_data, dict):
+                # Count items in nested dictionaries
+                for subcategory, items in issue_data.items():
+                    if isinstance(items, list):
+                        total_issues += len(items)
+                    elif isinstance(items, dict):
+                        total_issues += len(items)
+            elif isinstance(issue_data, list):
+                total_issues += len(issue_data)
+        logger.info(f"Total Issues Found: {total_issues}")
         logger.info(f"Recommendations: {len(recommendations)}")
         
         return True

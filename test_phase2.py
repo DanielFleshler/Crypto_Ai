@@ -14,7 +14,7 @@ import os
 import sys
 
 # Add the path to terminal if needed
-# sys.path.append(os.path.join(os.path.dirname(__file__), 'trading_strategy'))
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from trading_strategy.data_loader import DataLoader
 from trading_strategy.market_structure import MarketStructureDetector
@@ -38,18 +38,17 @@ def create_sample_ohlc_data(n_periods: int = 1000) -> pd.DataFrame:
     np.random.seed(42)  # For reproducibility
     
     prices = [start_price]
+    trend = 0  # Initialize trend outside the loop
+    
     for i in range(1, n_periods):
         # Basic volatility
         change_pct = np.random.normal(0, 0.002)  # 0.2% average volatility
         
-        # Adding trends
+        # Adding trends - deterministic based on position
         if i % 200 == 0:  # Every 200 candles - new trend
-            trend = np.random.choice([-1, 1]) * 0.001
+            trend = (1 if (i // 200) % 2 == 0 else -1) * 0.001
         elif i % 50 == 0:  # Every 50 candles - correction
-            trend = -trend * 0.5 if 'trend' in locals() else 0
-        
-        if 'trend' not in locals():
-            trend = 0
+            trend = -trend * 0.5
             
         new_price = prices[-1] * (1 + change_pct + trend)
         prices.append(max(new_price, 1.0))  # Minimum price 1

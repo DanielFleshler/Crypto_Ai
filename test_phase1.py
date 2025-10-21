@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 import pandas as pd
 from trading_strategy.data_loader import DataLoader
 from trading_strategy.market_structure import MarketStructureDetector

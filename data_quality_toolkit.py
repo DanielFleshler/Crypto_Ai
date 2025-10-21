@@ -43,6 +43,24 @@ Available Tools:
 Choose an option (1-5): """
     return input(menu)
 
+def get_valid_choice():
+    """Get a valid menu choice from user"""
+    while True:
+        try:
+            choice = print_menu().strip()
+            if choice in ['1', '2', '3', '4', '5']:
+                return choice
+            else:
+                print("Invalid choice. Please select 1-5.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+        except KeyboardInterrupt:
+            print("\nExiting...")
+            return '5'
+        except EOFError:
+            print("\nExiting...")
+            return '5'
+
 def run_verification():
     """Run data verification"""
     logger.info("Running data verification...")
@@ -83,6 +101,18 @@ def run_full_pipeline():
     """Run the complete pipeline: verify → repair → report"""
     logger.info("Running full data quality pipeline...")
     
+    # Ask for confirmation before proceeding with repair
+    print("\n" + "="*60)
+    print("FULL PIPELINE CONFIRMATION")
+    print("="*60)
+    print("This will: Verify → Repair → Generate Reports")
+    print("⚠️  WARNING: This will modify your data files!")
+    print("A backup will be created automatically.")
+    confirm = input("Do you want to proceed? (y/N): ")
+    if confirm.lower() != 'y':
+        logger.info("Full pipeline cancelled by user")
+        return False
+    
     # Step 1: Verify
     logger.info("Step 1/3: Verifying data...")
     verify_success = run_verification()
@@ -115,7 +145,7 @@ def main():
     
     while True:
         try:
-            choice = print_menu()
+            choice = get_valid_choice()
             
             if choice == '1':
                 print("\n" + "="*60)
@@ -158,17 +188,11 @@ def main():
                 print("\n" + "="*60)
                 print("RUNNING FULL PIPELINE")
                 print("="*60)
-                print("This will: Verify → Repair → Generate Reports")
-                print("⚠️  WARNING: This will modify your data files!")
-                confirm = input("Do you want to proceed? (y/N): ")
-                if confirm.lower() == 'y':
-                    success = run_full_pipeline()
-                    if success:
-                        print("✅ Full pipeline completed successfully!")
-                    else:
-                        print("❌ Pipeline failed. Check logs for details.")
+                success = run_full_pipeline()
+                if success:
+                    print("✅ Full pipeline completed successfully!")
                 else:
-                    print("Pipeline cancelled.")
+                    print("❌ Pipeline failed. Check logs for details.")
                 
             elif choice == '5':
                 print("Exiting toolkit. Goodbye!")
@@ -182,9 +206,13 @@ def main():
         except KeyboardInterrupt:
             print("\n\nExiting toolkit. Goodbye!")
             break
+        except EOFError:
+            print("\n\nExiting toolkit. Goodbye!")
+            break
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
             print(f"An error occurred: {e}")
+            print("Please try again or select option 5 to exit.")
 
 if __name__ == "__main__":
     main()
