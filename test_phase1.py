@@ -13,14 +13,14 @@ def main():
     end_date   = "2025-09-30"
     timeframe  = "15m"
 
-    print("1️⃣ טוען נתונים...")
+    print("1️⃣ Loading data...")
     dl = DataLoader(base_path=base_path)
     data = dl.load_pair_data(pair, [timeframe], start_date, end_date)
     df = data[timeframe]
     print(f"Rows loaded: {len(df)}")
     print(df.head(), "\n")
 
-    print("2️⃣ בדיקת Swing Points ו-BOS/CHoCH...")
+    print("2️⃣ Testing Swing Points and BOS/CHoCH...")
     msd = MarketStructureDetector()
     swing_df = msd.detect_swing_points(df, strength=2)
     structures = msd.detect_market_structure(swing_df)
@@ -30,7 +30,7 @@ def main():
         print(" ", s)
     print()
 
-    print("3️⃣ בדיקת FVG ו-Order Blocks...")
+    print("3️⃣ Testing FVG and Order Blocks...")
     ict = ICTConceptsDetector()
     fvgs = ict.detect_fvg(df, min_gap_percent=0.1)
     obs  = ict.detect_order_blocks(df, swing_df)
@@ -38,7 +38,7 @@ def main():
     print("  Examples FVG:", fvgs[:3])
     print("  Examples OB:",  obs[:3], "\n")
 
-    print("4️⃣ בדיקת Elliott Wave (גלים 1–3)...")
+    print("4️⃣ Testing Elliott Wave (waves 1-3)...")
     ewd = ElliottWaveDetector()
     wave1s = ewd.identify_wave_1(df, swing_df)
     wave2  = wave1s and ewd.identify_wave_2(df, wave1s[0], swing_df)
@@ -47,16 +47,16 @@ def main():
     print("Wave 2 identified:", wave2)
     print("Wave 3 identified:", wave3, "\n")
 
-    print("5️⃣ בדיקת Kill Zones...")
+    print("5️⃣ Testing Kill Zones...")
     kzd = KillZoneDetector()
     df_z = kzd.mark_kill_zones(df)
     print(df_z[['kill_zone','is_asia','is_london','is_ny']].head(10))
     print("Kill Zones count:")
     print(df_z['kill_zone'].value_counts(), "\n")
 
-    print("6️⃣ בדיקת run_analysis() במערכת הראשית...")
+    print("6️⃣ Testing run_analysis() in main system...")
     ts = TradingStrategy(base_path=base_path)
-    res = ts.run_analysis(pair=pair, start_date=start_date, end_date=end_date)
+    res = ts.run_analysis(pair, start_date, end_date)
     print("run_analysis() result:", res)
 
 if __name__ == "__main__":

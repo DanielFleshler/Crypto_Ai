@@ -179,8 +179,4 @@ class MarketStructureDetector:
         else:
             return 'NEUTRAL'
 
-print("🏗️ MarketStructureDetector Class Created")
-print("✅ Swing point detection")
-print("✅ BOS/CHoCH identification") 
-print("✅ Market bias calculation")
-print("📊 Ready for structure analysis")
+# MarketStructureDetector class ready for use
