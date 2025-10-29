@@ -1,0 +1,125 @@
+# Multi-Timeframe Configuration
+# Defines the hierarchy and relationships between different timeframes
+
+# Timeframe Hierarchy
+hierarchy:
+  # Higher Timeframe (HTF) - for bias determination
+  htf:
+    primary: "1h"
+    secondary: "4h"
+    tertiary: "1d"
+    
+  # Medium Timeframe (MTF) - for pattern analysis
+  mtf:
+    primary: "15m"
+    secondary: "30m"
+    
+  # Lower Timeframe (LTF) - for precision entry
+  ltf:
+    primary: "5m"
+    secondary: "1m"
+
+# Timeframe Relationships
+relationships:
+  # HTF to MTF ratio (how many MTF candles in HTF)
+  htf_to_mtf_ratio: 4  # 1h = 4 × 15m
+  
+  # MTF to LTF ratio
+  mtf_to_ltf_ratio: 3  # 15m = 3 × 5m
+  
+  # HTF to LTF ratio
+  htf_to_ltf_ratio: 12  # 1h = 12 × 5m
+
+# Data Requirements
+data_requirements:
+  # Minimum candles required for analysis
+  min_candles:
+    htf: 100  # Minimum 100 HTF candles
+    mtf: 400  # Minimum 400 MTF candles (100 × 4)
+    ltf: 1200  # Minimum 1200 LTF candles (100 × 12)
+    
+  # Lookback periods for different analyses
+  lookback_periods:
+    swing_analysis:
+      htf: 50   # 50 HTF candles
+      mtf: 200  # 200 MTF candles
+      ltf: 600  # 600 LTF candles
+      
+    structure_analysis:
+      htf: 20   # 20 HTF candles
+      mtf: 80   # 80 MTF candles
+      ltf: 240  # 240 LTF candles
+      
+    pattern_analysis:
+      htf: 10   # 10 HTF candles
+      mtf: 40   # 40 MTF candles
+      ltf: 120  # 120 LTF candles
+
+# Synchronization Settings
+synchronization:
+  # Maximum time offset between timeframes (in minutes)
+  max_offset_minutes: 5
+  
+  # Data alignment strategy
+  alignment_strategy: "forward_fill"  # forward_fill, backward_fill, interpolate
+  
+  # Missing data handling
+  missing_data_strategy: "skip"  # skip, interpolate, forward_fill
+
+# Analysis Parameters by Timeframe
+analysis_parameters:
+  htf:
+    # Higher timeframe analysis
+    swing_strength: 3  # 3 candles for HTF swing points
+    trend_detection_period: 20  # 20 candles for trend detection
+    bias_confidence_threshold: 0.7  # 70% confidence for bias
+    
+  mtf:
+    # Medium timeframe analysis
+    swing_strength: 2  # 2 candles for MTF swing points
+    pattern_detection_period: 10  # 10 candles for pattern detection
+    confirmation_threshold: 0.6  # 60% confirmation threshold
+    
+  ltf:
+    # Lower timeframe analysis
+    swing_strength: 1  # 1 candle for LTF swing points
+    precision_entry_period: 5  # 5 candles for precision entry
+    entry_confirmation_threshold: 0.8  # 80% entry confirmation
+
+# Session Mapping
+session_mapping:
+  # Which timeframes are most relevant for each session
+  asia:
+    primary: "1h"  # HTF for Asia session
+    secondary: "15m"  # MTF for Asia session
+    precision: "5m"  # LTF for Asia session
+    
+  london:
+    primary: "1h"  # HTF for London session
+    secondary: "15m"  # MTF for London session
+    precision: "5m"  # LTF for London session
+    
+  ny:
+    primary: "1h"  # HTF for NY session
+    secondary: "15m"  # MTF for NY session
+    precision: "5m"  # LTF for NY session
+    
+  overlap:
+    primary: "1h"  # HTF for overlap session
+    secondary: "15m"  # MTF for overlap session
+    precision: "5m"  # LTF for overlap session
+
+# Performance Optimization
+performance:
+  # Data loading optimization
+  lazy_loading: true  # Load data on demand
+  caching_enabled: true  # Cache loaded data
+  cache_ttl_minutes: 30  # 30 minutes cache TTL
+  
+  # Processing optimization
+  vectorized_operations: true  # Use vectorized operations
+  parallel_processing: false  # Disable parallel processing for now
+  
+  # Memory management
+  max_memory_usage_mb: 500  # Maximum 500MB memory usage
+  cleanup_threshold: 0.8  # Cleanup when 80% memory used

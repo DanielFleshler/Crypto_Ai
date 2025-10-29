@@ -1,0 +1,443 @@
+# Elliott Wave + ICT Trading Bot Configuration
+# This file contains all configurable parameters to eliminate hardcoded magic numbers
+
+# Elliott Wave Detection Parameters
+elliott_wave:
+  # Wave detection thresholds
+  wave1_min_move_percent: 3.0  # Minimum 3% move for Wave 1 detection
+  wave2_max_retracement: 0.786  # Maximum 78.6% retracement for Wave 2
+  wave2_min_retracement: 0.236  # Minimum 23.6% retracement for Wave 2
+  wave3_break_tolerance: 0.01  # 1% tolerance for Wave 1 high/low break
+  wave4_max_retracement: 0.5   # Maximum 50% retracement for Wave 4
+  wave4_min_retracement: 0.236  # Minimum 23.6% retracement for Wave 4
+  
+  # Wave validation rules
+  wave2_invalidation_buffer: 0.01  # 1% buffer beyond 78.6% for invalidation
+  wave3_shortest_rule: true  # Enforce "Wave 3 cannot be shortest" rule
+  wave4_territory_constraint: true  # Wave 4 cannot enter Wave 1 territory
+  
+  # Lookback periods
+  wave2_lookback_candles: 50
+  wave3_lookback_candles: 100
+  wave4_lookback_candles: 50
+  wave5_lookback_candles: 50
+  
+  # Structure confirmation
+  require_bos_for_wave1: true  # Require BOS confirmation for Wave 1
+  require_structure_for_wave1: true  # Require structure confirmation for Wave 1
+  
+  # ABC Correction Detection
+  abc_correction:
+    # Wave A validation
+    wave_a_min_move_percent: 1.0  # Minimum 1% move for Wave A
+    wave_a_max_move_percent: 10.0  # Maximum 10% move for Wave A quality
+    
+    # Wave B validation (partial retracement)
+    wave_b_min_retracement: 0.236  # Minimum 23.6% retracement of Wave A
+    wave_b_max_retracement: 0.786  # Maximum 78.6% retracement of Wave A
+    
+    # Wave C validation (extension beyond A)
+    wave_c_min_extension: 1.0  # Minimum 100% of Wave A (equal move)
+    wave_c_max_extension: 1.618  # Maximum 161.8% of Wave A (golden ratio)
+    
+    # Overall correction depth
+    correction_min_depth: 0.382  # Minimum 38.2% of prior impulse
+    correction_max_depth: 0.618  # Maximum 61.8% of prior impulse
+    
+    # Lookback periods
+    abc_lookback_candles: 100  # Look back 100 candles for ABC detection
+    wave_b_lookback_candles: 50  # Look back 50 candles for Wave B
+    wave_c_lookback_candles: 50  # Look back 50 candles for Wave C
+    
+    # ATR-based thresholds
+    atr_period: 14  # ATR calculation period
+    atr_multiplier_min: 0.5  # Minimum ATR multiplier for wave validation
+    atr_multiplier_max: 3.0  # Maximum ATR multiplier for wave validation
+
+# Fibonacci Levels
+fibonacci:
+  retracement_levels: [0.236, 0.382, 0.5, 0.618, 0.786]
+  extension_levels: [1.0, 1.272, 1.414, 1.618, 2.0, 2.272, 2.618]
+  
+  # Dynamic weighting based on confluence
+  confluence_weights:
+    single_level: 1.0
+    two_levels: 1.5
+    three_levels: 2.0
+    four_levels: 2.5
+
+# ICT Concepts Parameters
+ict_concepts:
+  # Fair Value Gap (FVG)
+  fvg:
+    min_gap_percent: 0.1  # Minimum 0.1% gap for FVG
+    max_gap_percent: 5.0  # Maximum 5% gap for FVG quality
+    distinguish_ifvg: true  # Distinguish IFVG from regular FVG
+    
+    # Enhanced IFVG detection (MISSING-ICT-001)
+    ifvg_atr_multiplier: 1.5  # ATR multiplier for strong move detection
+    ifvg_atr_period: 14  # ATR calculation period
+    ifvg_volume_threshold: 1.3  # Volume spike threshold for IFVG context
+    ifvg_volume_lookback: 10  # Candles to look back for volume context
+    ifvg_mid_trend_validation: true  # Validate mid-trend placement
+    ifvg_trend_lookback: 20  # Candles to look back for trend context
+    
+  # Order Block (OB)
+  order_block:
+    min_impulse_move_percent: 1.0  # Minimum 1% move for OB validation
+    max_impulse_move_percent: 10.0  # Maximum 10% move for OB quality
+    lookback_candles: 10  # Look back 10 candles for OB detection
+    freshness_tracking: true  # Track OB freshness (unused vs tested vs broken)
+    
+  # Breaker Block (BB)
+  breaker_block:
+    lifecycle_tracking: true  # Track BB lifecycle and validity
+    conversion_threshold: 0.01  # 1% threshold for BB conversion
+    
+  # Optimal Trade Entry (OTE)
+  ote:
+    start_percent: 0.62  # 62% retracement start
+    end_percent: 0.79   # 79% retracement end
+    min_swing_strength: 2  # Minimum swing strength for OTE zone
+    lookback_days: 10  # Look back 10 days for swing analysis
+    
+  # Liquidity Grab
+  liquidity_grab:
+    sweep_buffer_percent: 0.1  # 0.1% buffer beyond swing high/low
+    reversal_confirmation: true  # Require reversal confirmation
+    lookback_candles: 20  # Look back 20 candles for liquidity levels
+    
+    # Enhanced reversal confirmation (BUG-ICT-002)
+    reversal_confirmation_window: 5  # Number of candles to check for reversal
+    min_confirming_candles: 2  # Minimum candles with momentum confirmation
+    volume_spike_enabled: true  # Enable volume spike detection
+    volume_spike_threshold: 1.5  # Volume spike = 1.5x pre-sweep mean
+    volume_lookback_candles: 10  # Candles to calculate pre-sweep volume mean
+
+# Market Structure Parameters
+market_structure:
+  # Swing point detection
+  swing_strength: 2  # Number of candles on each side to confirm swing
+  min_swing_distance_percent: 0.5  # Minimum 0.5% distance for swing points
+  
+  # Structure detection
+  lookback_period: 20  # Look back 20 periods for structure analysis
+  min_structures_for_bias: 3  # Minimum 3 structures for bias determination
+  
+  # Liquidity tracking
+  liquidity_level_tracking: true  # Track previous swing highs/lows
+  liquidity_sweep_detection: true  # Detect liquidity sweeps
+  
+  # Structure strength scoring
+  strength_scoring:
+    volume_weight: 0.3
+    impulse_weight: 0.4
+    confirmation_weight: 0.3
+
+# Risk Management Parameters
+risk_management:
+  # Position sizing
+  max_risk_per_trade: 0.02  # Maximum 2% risk per trade
+  max_daily_risk: 0.05  # Maximum 5% daily risk
+  max_concurrent_positions: 5  # Maximum 5 concurrent positions
+  
+  # Volatility adjustment
+  atr_period: 14  # ATR calculation period
+  volatility_factor: true  # Apply volatility factor to position sizing
+  
+  # ATR-based thresholds for dynamic sizing
+  atr_fractions:
+    sl_atr_multiplier: 1.5  # Stop loss = 1.5x ATR
+    tp_atr_multiplier: 3.0  # Take profit = 3.0x ATR
+    position_size_atr_factor: 0.5  # Position size scaling factor
+  
+  # Execution slippage
+  slippage_percent: 0.0005  # 0.05% slippage on stop loss execution (worse fills)
+  
+  # Take profit levels (as percentages of position)
+  take_profit_levels:
+    tp1_percent: 0.3  # Close 30% at TP1
+    tp2_percent: 0.4  # Close 40% at TP2
+    tp3_percent: 0.3  # Close 30% at TP3/TP4
+    
+  # Stop loss management
+  stop_to_breakeven: true  # Move stop to BE after TP1
+  stop_to_tp1: true  # Move stop to TP1 after TP2
+  
+  # Drawdown protection
+  max_drawdown_percent: 0.15  # Halt trading if DD > 15%
+  drawdown_recovery_percent: 0.05  # Resume trading if DD < 5%
+  
+  # Portfolio-level risk management
+  correlation:
+    window_days: 30  # Rolling window for correlation calculation
+    threshold: 0.7  # Block trades if correlation > 70%
+    enabled: true  # Enable correlation checks
+  
+  # Trade frequency limits
+  frequency_limits:
+    min_time_between_trades_minutes: 30  # Minimum 30 minutes between trades on same pair
+    max_trades_per_day: 10  # Maximum 10 trades per day
+    stop_loss_cooldown_hours: 2  # 2 hour cooldown after stop loss
+    enabled: true  # Enable frequency limits
+  
+  # Trade limits
+  trade_limits:
+    max_signals_per_hour: 5  # Maximum 5 signals per hour
+    max_signals_per_day: 20  # Maximum 20 signals per day
+    signal_cooldown_minutes: 15  # 15 minute cooldown between signals
+    enabled: true  # Enable trade limits
+
+# Session Logic Parameters (alias for sessions)
+session_logic:
+  # Kill zones (UTC hours)
+  asia_start: 0
+  asia_end: 8
+  london_start: 8
+  london_end: 16
+  ny_start: 13
+  ny_end: 21
+  
+  # Session preferences
+  prefer_london_ny_overlap: true  # Prefer London/NY overlap for entries
+  avoid_asia_session: true  # Avoid entries during Asia session
+  
+  # Timezone handling
+  default_timezone: "UTC"
+  exchange_timezone: "UTC"
+  dst_handling: true  # Handle daylight saving time
+  
+  # Session characteristics
+  asia_session:
+    bias: "NEUTRAL"
+    liquidity: "BUILDING"
+    volatility: "LOW"
+  london_session:
+    bias: "BULLISH"
+    liquidity: "BREAKING"
+    volatility: "HIGH"
+  ny_session:
+    bias: "BULLISH"
+    liquidity: "BREAKING"
+    volatility: "HIGH"
+  overlap_session:
+    bias: "BULLISH"
+    liquidity: "BREAKING"
+    volatility: "VERY_HIGH"
+
+# Session and Timing Parameters
+sessions:
+  # Kill zones (UTC hours)
+  asia_start: 0
+  asia_end: 8
+  london_start: 8
+  london_end: 16
+  ny_start: 13
+  ny_end: 21
+  
+  # Session preferences
+  prefer_london_ny_overlap: true  # Prefer London/NY overlap for entries
+  avoid_asia_session: true  # Avoid entries during Asia session
+  
+  # Timezone handling
+  default_timezone: "UTC"
+  exchange_timezone: "UTC"
+  dst_handling: true  # Handle daylight saving time
+
+# Multi-Timeframe Parameters
+timeframes:
+  # Timeframe hierarchy
+  htf: "1h"  # Higher timeframe for bias
+  mtf: "15m"  # Medium timeframe for analysis
+  ltf: "5m"  # Lower timeframe for precision entry
+  
+  # HTF bias filtering
+  require_htf_bias: true  # Only trade in HTF bias direction
+  htf_trend_strength_threshold: 0.6  # Minimum 60% trend strength
+  
+  # Data synchronization
+  max_timeframe_offset_minutes: 5  # Maximum 5 minutes offset between timeframes
+
+# Entry Confirmation Parameters
+entry_confirmation:
+  # Multi-confirmation system
+  min_confirmations: 2  # Minimum 2 confirmations required
+  max_confirmations: 4  # Maximum 4 confirmations to check
+  
+  # Confirmation types
+  confirmation_types:
+    - "FVG"  # Fair Value Gap
+    - "OB"   # Order Block
+    - "OTE"  # Optimal Trade Entry
+    - "BOS"  # Break of Structure
+    - "CHoCH" # Change of Character
+    - "LIQUIDITY_GRAB"  # Liquidity Grab
+  
+  # Enhanced confluence scoring with weights
+  confluence_scoring:
+    single_confirmation: 1.0
+    two_confirmations: 1.5
+    three_confirmations: 2.0
+    four_confirmations: 2.5
+    
+  # Confluence weights per confirmation type
+  confirmation_weights:
+    fvg_weight: 0.3
+    ob_weight: 0.4
+    ote_weight: 0.5
+    bos_weight: 0.6
+    choch_weight: 0.7
+    liquidity_grab_weight: 0.4
+    
+  # True overlap detection
+  true_overlap:
+    enabled: true
+    overlap_bonus_fvg_ob: 0.3
+    overlap_bonus_fvg_ote: 0.3
+    overlap_bonus_ob_ote: 0.3
+    overlap_bonus_triple: 0.5
+    
+  # Correlation limits for signal filtering
+  correlation_limits:
+    max_correlation_threshold: 0.7  # Block signals if correlation > 70%
+    correlation_window_hours: 24  # 24 hour correlation window
+    enabled: true
+
+# Wave Ranking Parameters
+wave_ranking:
+  # Score weights (must sum to 1.0)
+  weights:
+    fibonacci_proximity: 0.35  # 35% weight for Fibonacci alignment
+    volume_profile: 0.25       # 25% weight for volume/OBV analysis
+    structure_confirmation: 0.20  # 20% weight for structure confirmation
+    session_timing: 0.20        # 20% weight for session timing
+  
+  # Fibonacci proximity scoring
+  fibonacci_proximity:
+    # Canonical Fibonacci levels for scoring
+    canonical_levels: [0.236, 0.382, 0.5, 0.618, 0.786, 1.0, 1.272, 1.414, 1.618]
+    # Distance tolerance for proximity scoring (as percentage of price range)
+    proximity_tolerance: 0.02  # 2% tolerance
+    # Maximum score for perfect alignment
+    max_score: 1.0
+    # Minimum score for any alignment
+    min_score: 0.1
+  
+  # Volume profile scoring
+  volume_profile:
+    # OBV calculation period
+    obv_period: 14
+    # Volume moving average period
+    volume_ma_period: 20
+    # Volume spike threshold (multiples of average)
+    volume_spike_threshold: 1.5
+    # Maximum score for high volume confirmation
+    max_score: 1.0
+    # Minimum score for low volume
+    min_score: 0.1
+  
+  # Structure confirmation scoring
+  structure_confirmation:
+    # Time window for nearby structures (seconds)
+    time_window: 3600  # 1 hour
+    # Maximum score for multiple confirmations
+    max_score: 1.0
+    # Score per confirmation
+    score_per_confirmation: 0.2
+  
+  # Session timing scoring
+  session_timing:
+    # Preferred sessions (UTC hours)
+    preferred_sessions:
+      london: [8, 16]      # London session
+      ny: [13, 21]         # NY session
+      overlap: [13, 16]    # London/NY overlap
+    # Score for preferred sessions
+    preferred_score: 1.0
+    # Score for other sessions
+    other_score: 0.5
+    # Score for Asia session (if avoid_asia_session is true)
+    asia_score: 0.3
+  
+  # Tie-breaking parameters
+  tie_breaking:
+    # Primary tie-breaker: recency (newer waves preferred)
+    recency_weight: 0.6
+    # Secondary tie-breaker: strength (longer waves preferred)
+    strength_weight: 0.4
+    # Time decay factor for recency (higher = more recent bias)
+    time_decay_factor: 0.1
+
+# Logging and Debugging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  log_to_file: true
+  log_file: "trading_bot.log"
+  max_log_size_mb: 10
+  backup_count: 5
+  
+  # Component-specific logging
+  components:
+    elliott_wave: "INFO"
+    ict_concepts: "INFO"
+    market_structure: "INFO"
+    risk_management: "WARNING"
+    entry_logic: "DEBUG"
+    ltf_precision_entry: "INFO"
+    kill_zones: "INFO"
+    confirmation_scoring: "DEBUG"
+    
+  # Detailed logging for filtered entries
+  filtered_entries:
+    enabled: true
+    log_reason: true  # Log why entries were filtered
+    log_confirmation_details: true  # Log confirmation details
+    log_ltf_refinement: true  # Log LTF refinement details
+    log_session_filtering: true  # Log session-based filtering
+    
+  # Performance logging
+  performance_logging:
+    enabled: true
+    log_execution_times: true
+    log_memory_usage: true
+    log_signal_counts: true
+    log_analysis_duration: true
+
+# LTF Precision Entry Refinement
+ltf_precision_entry:
+  # Micro concept detection thresholds
+  micro_fvg_min_gap: 0.05  # Minimum 0.05% gap for micro FVG
+  micro_ote_lookback_days: 3  # Look back 3 days for micro OTE
+  
+  # Analysis window around MTF signals
+  analysis_window_minutes: 30  # 30 minutes before/after signal
+  
+  # Confirmation weights for LTF concepts
+  confirmation_weights:
+    micro_fvg: 0.3
+    micro_ob: 0.4
+    micro_ote: 0.5
+    micro_choch: 0.6
+    micro_liquidity_grab: 0.4
+  
+  # Minimum confirmation score to gate MTF signals
+  min_confirmation_score: 0.7
+  
+  # Stop loss refinement parameters
+  atr_sl_multiplier: 1.5  # ATR multiplier for dynamic SL
+  atr_sl_buffer: 0.5  # ATR buffer for structure-based SL
+  price_tolerance_percent: 0.1  # 0.1% tolerance for concept proximity
+
+# Performance Optimization
+performance:
+  # Caching
+  enable_caching: true
+  cache_ttl_seconds: 300  # 5 minutes cache TTL
+  
+  # Data processing
+  vectorize_calculations: true  # Use NumPy/Pandas vectorization
+  parallel_processing: false  # Disable for now (can cause issues)
+  
+  # Memory management
+  max_dataframe_size_mb: 100  # Maximum 100MB per DataFrame
+  cleanup_old_data: true  # Clean up old data automatically
