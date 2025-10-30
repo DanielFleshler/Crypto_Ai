@@ -110,6 +110,12 @@ class BacktestEngine:
             analysis_result = self.trading_strategy.run_analysis(pair, start_date, end_date)
             signals = analysis_result['signals']
 
+            # FIXED BUG-META-001: Add pair to signal metadata
+            for signal in signals:
+                if not signal.metadata:
+                    signal.metadata = {}
+                signal.metadata['pair'] = pair
+
             # Initialize tracking
             balance = self.initial_balance
             equity_curve = [balance]
@@ -139,16 +145,30 @@ class BacktestEngine:
                 # Execute trade
                 trade_result = self._execute_trade(signal, ohlc, signal_idx, balance)
 
+                # DEBUG: Track trade execution
                 if trade_result:
+                    print(f"DEBUG: Trade executed at {signal.timestamp}")
+                    print(f"  P&L: ${trade_result['journal_entry']['pnl']:.2f}")
+                    print(f"  Exit reason: {trade_result['journal_entry'].get('exit_reason', 'NONE')}")
+                    print(f"  Journal entries before append: {len(trade_journal)}")
+
                     balance = trade_result['final_balance']
                     equity_curve.append(balance)
                     trade_journal.append(trade_result['journal_entry'])
 
+                    print(f"  Journal entries after append: {len(trade_journal)}")
+
                     # Update risk tracking
                     self._update_risk_tracking(trade_result, signal)
+                else:
+                    print(f"DEBUG: Trade returned None at {signal.timestamp}")
 
             # Calculate performance metrics
             performance_metrics = self._calculate_performance_metrics(trade_journal, equity_curve)
+
+            # DEBUG: Check journal before return
+            print(f"DEBUG RETURN: Journal has {len(trade_journal)} entries before return")
+            print(f"DEBUG RETURN: Balance = ${balance:.2f}")
 
             return {
                 'final_balance': balance,
@@ -202,22 +222,25 @@ class BacktestEngine:
             else:
                 adjusted_risk = risk_percentage
 
-            # Calculate position size
+            # Calculate position size in dollars
             if adjusted_risk <= 0:
                 print(f"Warning: Invalid risk calculation for signal at {signal.timestamp}")
                 return None
 
-            position_size = (current_balance * self.risk_per_trade) / adjusted_risk
-            position_size = min(position_size, current_balance * 0.95)  # Max 95% of balance
+            position_size_dollars = (current_balance * self.risk_per_trade) / adjusted_risk
+            position_size_dollars = min(position_size_dollars, current_balance * 0.95)  # Max 95% of balance
 
-            if position_size <= 0:
+            if position_size_dollars <= 0:
                 print(f"Warning: Invalid position size for signal at {signal.timestamp}")
                 return None
 
+            # CRITICAL FIX: Convert position size from dollars to actual quantity (BTC)
+            position_qty = position_size_dollars / entry_price
+
             # Create position state for tracking
             position_state = PositionState(
-                entry_qty=position_size,
-                remaining_qty=position_size,
+                entry_qty=position_qty,
+                remaining_qty=position_qty,
                 entry_price=entry_price,
                 stop_loss=signal.stop_loss,
                 take_profits=signal.take_profits
@@ -324,6 +347,7 @@ class BacktestEngine:
             'entry_type': signal.entry_type,
             'signal_type': signal.signal_type,
             'entry_price': entry_price,
+            'stop_loss': signal.stop_loss,  # CRITICAL FIX: Include stop_loss for risk calculation
             'exit_price': exit_price,
             'exit_reason': exit_reason,
             'quantity': initial_qty,
@@ -341,6 +365,17 @@ class BacktestEngine:
 
     def _check_risk_limits(self, signal: Signal) -> bool:
         """Check if signal passes risk limits."""
+        # FIXED: Reset daily risk at start of new day
+        signal_date = signal.timestamp.date()
+        if self.current_date is None:
+            self.current_date = signal_date
+        elif signal_date != self.current_date:
+            print(f"New trading day: {signal_date}, resetting daily risk from {self.daily_risk_used:.2%} to 0%")
+            self.daily_risk_used = 0.0
+            self.current_date = signal_date
+            # Reset daily trade counts
+            self.daily_trade_counts.clear()
+
         # Check maximum concurrent positions
         if len(self.active_positions) >= self.risk_config.max_concurrent_positions:
             print(f"Risk limit: Max concurrent positions exceeded ({len(self.active_positions)})")
@@ -380,9 +415,16 @@ class BacktestEngine:
         """Update risk tracking after trade."""
         journal_entry = trade_result['journal_entry']
 
-        # Update daily risk
-        risk_amount = abs(journal_entry['entry_price'] - journal_entry.get('stop_loss', 0))
-        self.daily_risk_used += risk_amount / self.current_balance
+        # FIXED BUG-RISK-003: Only count actual losses toward daily risk
+        # Winning trades don't consume daily risk budget
+        pnl = journal_entry.get('pnl', 0)
+        if pnl < 0:
+            # Calculate actual loss as percentage of current balance
+            loss_pct = abs(pnl) / self.current_balance
+            self.daily_risk_used += loss_pct
+            print(f"Daily risk update: Loss {loss_pct:.2%}, Total daily risk: {self.daily_risk_used:.2%}")
+        else:
+            print(f"Daily risk update: Win ${pnl:.2f}, No risk consumed. Total daily risk: {self.daily_risk_used:.2%}")
 
         # Update balance
         self.current_balance = trade_result['final_balance']
@@ -433,6 +475,8 @@ class BacktestEngine:
         """
         Check trade frequency limits.
 
+        FIXED BUG-FREQ-001: Allow multiple signals on same timestamp
+
         Args:
             signal: Trading signal to check
 
@@ -442,12 +486,15 @@ class BacktestEngine:
         pair = signal.metadata.get('pair', 'UNKNOWN')
         current_date = signal.timestamp.date()
 
-        # Check minimum time between trades on same pair
+        # FIXED: Check minimum time between trades on same pair
+        # Only enforce if timestamps are DIFFERENT (allow multiple signals on same candle)
         if pair in self.last_trade_times:
             time_since_last = signal.timestamp - self.last_trade_times[pair]
             min_interval = timedelta(minutes=self.min_time_between_trades_minutes)
 
-            if time_since_last < min_interval:
+            # Only block if strictly less than min interval (not equal)
+            # This allows signals on the same timestamp to pass
+            if timedelta(0) < time_since_last < min_interval:
                 print(f"Frequency limit: Min time between trades on {pair} not met ({time_since_last})")
                 return False
 

@@ -143,20 +143,37 @@ class TradingStrategy:
         if 'dataframe' not in mtf_analysis or not isinstance(mtf_analysis.get('dataframe', None), pd.DataFrame):
             raise KeyError('mtf_analysis must include a dataframe')
 
+        # DIAGNOSTIC LOGGING: Track signal generation stages
+        print(f"\n{'='*70}")
+        print(f"SIGNAL GENERATION DIAGNOSTIC")
+        print(f"{'='*70}")
+        print(f"HTF Bias: {htf_bias}")
+
         # Only generate signals aligned with HTF bias
         if not self._is_htf_bias_aligned(htf_bias):
+            print(f"⚠ HTF bias not aligned - No signals will be generated")
+            print(f"  Current bias: {htf_bias}")
+            print(f"  Trading allowed in: {self._get_allowed_biases()}")
             return signals
+
+        print(f"✓ HTF bias aligned - Proceeding with signal generation")
 
         # Generate ICT entry signals
         ict_signals = self._generate_ict_signals(mtf_analysis)
+        print(f"ICT Signals Generated: {len(ict_signals)}")
         signals.extend(ict_signals)
 
         # Generate Elliott+ICT integration signals
         integration_signals = self._generate_integration_signals(mtf_analysis)
+        print(f"Elliott+ICT Integration Signals: {len(integration_signals)}")
         signals.extend(integration_signals)
+
+        print(f"Total MTF Signals (before confirmation filtering): {len(signals)}")
 
         # Filter signals by multi-confirmation system
         filtered_signals = self._filter_signals_by_confirmation(signals, mtf_analysis)
+        print(f"After Multi-Confirmation Filtering: {len(filtered_signals)}")
+        print(f"{'='*70}\n")
 
         # Stamp metadata expected by tests
         for s in filtered_signals:
@@ -538,6 +555,9 @@ class TradingStrategy:
             # Update HTF bias dynamically
             bias_update = self.update_htf_bias_dynamically(data[self.timeframe_config.htf])
 
+            # FIXED: Ensure htf_bias is stored for use in signal generation
+            self.htf_bias = bias_update['new_bias']
+
             # Analyze MTF structure
             mtf_analysis = self.analyze_mtf_structure(data[self.timeframe_config.mtf])
 
@@ -659,10 +679,16 @@ class TradingStrategy:
         return [wave for wave, score, fib, vol, struct, sess in ranked_candidates]
 
     def _generate_ict_signals(self, mtf_analysis: Dict) -> List[Signal]:
-        """Generate ICT entry signals."""
+        """
+        Generate ICT entry signals.
+
+        NOTE: Signal direction is now handled in ICT entry methods themselves
+        via counter-trend logic (BUG-ICT-COUNTER-001 to 004)
+        """
         signals = []
 
         # Generate all 5 ICT entry types
+        # Each method now handles HTF bias internally and generates correct signal direction
         signals.extend(self.ict_entries.detect_liquidity_grab_choch_entries(
             mtf_analysis['dataframe'], mtf_analysis))
         signals.extend(self.ict_entries.detect_fvg_entries(
@@ -1369,6 +1395,10 @@ class TradingStrategy:
     def _is_htf_bias_aligned(self, htf_bias: str) -> bool:
         """Check if HTF bias allows trading."""
         return htf_bias != 'NEUTRAL'
+
+    def _get_allowed_biases(self) -> str:
+        """Get allowed biases for diagnostic logging."""
+        return "BULLISH or BEARISH (not NEUTRAL)"
 
     def _is_wave2_in_retracement_zone(self, wave1, wave2) -> bool:
         """Check if Wave 2 is in retracement zone."""

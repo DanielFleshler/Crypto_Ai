@@ -284,6 +284,14 @@ class ICTConcept:
         self.is_broken = True
         self.is_fresh = False
 
+    def mark_tested(self):
+        """Mark this concept as tested (retested but not broken)."""
+        self.is_fresh = False
+        # Increment test count if it exists in metadata
+        if 'test_count' not in self.metadata:
+            self.metadata['test_count'] = 0
+        self.metadata['test_count'] += 1
+
     def get_zone_size(self) -> float:
         """Get the size of the zone."""
         return self.end_price - self.start_price

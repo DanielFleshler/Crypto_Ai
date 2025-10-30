@@ -65,17 +65,48 @@ class LTFPrecisionEntry:
         if not mtf_signals or ltf_data.empty:
             return []
 
+        # DEBUG: Log LTF refinement details
+        print(f"\n{'='*70}")
+        print(f"LTF REFINEMENT DEBUG")
+        print(f"{'='*70}")
+        print(f"MTF Signals to refine: {len(mtf_signals)}")
+        print(f"LTF Data available: {len(ltf_data)} candles")
+        print(f"LTF Date range: {ltf_data.index[0]} to {ltf_data.index[-1]}")
+        print(f"Analysis window: {self.ltf_config.analysis_window_minutes} minutes")
+
         refined_signals = []
 
-        for signal in mtf_signals:
+        for idx, signal in enumerate(mtf_signals):
+            if idx < 5:  # Debug first 5 signals in detail
+                print(f"\n--- Signal {idx+1}/{len(mtf_signals)} ---")
+                print(f"  Time: {signal.timestamp}")
+                print(f"  Type: {signal.signal_type}")
+                print(f"  Price: ${signal.price:.2f}")
             # Get LTF analysis around signal timestamp
             ltf_analysis = self._get_ltf_analysis_around_signal(ltf_data, signal)
 
             if not ltf_analysis:
+                if idx < 5:
+                    print(f"  ✗ No LTF analysis available")
                 continue
+
+            if idx < 5:  # Debug first 5 signals
+                print(f"  LTF Analysis:")
+                print(f"    Window candles: {len(ltf_analysis.get('dataframe', []))} candles")
+                print(f"    Micro FVGs: {len(ltf_analysis.get('micro_fvgs', []))}")
+                print(f"    Micro OBs: {len(ltf_analysis.get('micro_order_blocks', []))}")
+                print(f"    Micro OTE: {len(ltf_analysis.get('micro_ote_zones', []))}")
+                print(f"    Micro CHoCH: {len(ltf_analysis.get('micro_choch', []))}")
 
             # Check LTF confirmation
             ltf_confirmation = self._check_ltf_confirmation(signal, ltf_analysis)
+
+            if idx < 5:  # Debug first 5 signals
+                print(f"  LTF Confirmation:")
+                print(f"    Confirmations: {ltf_confirmation.get('confirmations', [])}")
+                print(f"    Score: {ltf_confirmation.get('confirmation_score', 0):.2f}")
+                print(f"    Required: {ltf_confirmation.get('min_score_required', 0):.2f}")
+                print(f"    Result: {'✓ PASS' if ltf_confirmation['confirmed'] else '✗ REJECT'}")
 
             if ltf_confirmation['confirmed']:
                 # Refine signal with LTF data
@@ -153,11 +184,15 @@ class LTFPrecisionEntry:
                 # Use strongest support with ATR buffer
                 strongest_support = max(support_levels, key=lambda x: x['strength'])
                 tighter_sl = strongest_support['price'] - (atr * self.ltf_config.atr_sl_buffer)
-                return max(tighter_sl, signal.stop_loss)  # Don't make SL worse
+                # Ensure SL is below entry and not worse than original
+                tighter_sl = max(tighter_sl, signal.stop_loss)
+                return min(tighter_sl, signal.price * 0.999)  # Must be below entry
             else:
                 # Use ATR-based stop
                 tighter_sl = signal.price - (atr * self.ltf_config.atr_sl_multiplier)
-                return max(tighter_sl, signal.stop_loss)
+                # Ensure SL is below entry and not worse than original
+                tighter_sl = max(tighter_sl, signal.stop_loss)
+                return min(tighter_sl, signal.price * 0.999)  # Must be below entry
 
         else:  # SELL
             # For short positions, find nearest resistance above entry
@@ -167,11 +202,15 @@ class LTFPrecisionEntry:
                 # Use strongest resistance with ATR buffer
                 strongest_resistance = max(resistance_levels, key=lambda x: x['strength'])
                 tighter_sl = strongest_resistance['price'] + (atr * self.ltf_config.atr_sl_buffer)
-                return min(tighter_sl, signal.stop_loss)  # Don't make SL worse
+                # Ensure SL is above entry and not worse than original
+                tighter_sl = min(tighter_sl, signal.stop_loss)
+                return max(tighter_sl, signal.price * 1.001)  # Must be above entry
             else:
                 # Use ATR-based stop
                 tighter_sl = signal.price + (atr * self.ltf_config.atr_sl_multiplier)
-                return min(tighter_sl, signal.stop_loss)
+                # Ensure SL is above entry and not worse than original
+                tighter_sl = min(tighter_sl, signal.stop_loss)
+                return max(tighter_sl, signal.price * 1.001)  # Must be above entry
 
     def _get_ltf_analysis_around_signal(self, ltf_data: pd.DataFrame, signal: Signal) -> Optional[Dict]:
         """
@@ -227,14 +266,37 @@ class LTFPrecisionEntry:
         confirmations = []
         confirmation_score = 0.0
 
+        # DEBUG: Track first signal in detail
+        debug_first = not hasattr(self, '_debug_count')
+        if debug_first:
+            self._debug_count = 0
+
+        debug_this = self._debug_count < 3
+        if debug_this:
+            self._debug_count += 1
+            print(f"\n  === CONFIRMATION CHECK DETAIL ===")
+            print(f"  Signal Price: ${signal.price:.2f}")
+            print(f"  Signal Type: {signal.signal_type}")
+
         # Check micro FVG confirmation
         micro_fvgs = ltf_analysis.get('micro_fvgs', [])
-        for fvg in micro_fvgs:
+        if debug_this and len(micro_fvgs) > 0:
+            print(f"  Checking {len(micro_fvgs)} micro FVGs:")
+
+        for idx, fvg in enumerate(micro_fvgs):
+            if debug_this:
+                print(f"    FVG {idx+1}: ${fvg.start_price:.2f} - ${fvg.end_price:.2f}, "
+                      f"Bullish: {fvg.is_bullish()}, "
+                      f"In zone: {fvg.is_price_in_zone(signal.price)}")
+
             if fvg.is_price_in_zone(signal.price):
-                if ((signal.signal_type == 'BUY' and fvg.is_bullish()) or
-                    (signal.signal_type == 'SELL' and fvg.is_bearish())):
+                # FVGs work as reversal zones: Bearish FVG = discount/support for BUY, Bullish FVG = premium/resistance for SELL
+                if ((signal.signal_type == 'BUY' and fvg.is_bearish()) or
+                    (signal.signal_type == 'SELL' and fvg.is_bullish())):
                     confirmations.append('MICRO_FVG')
                     confirmation_score += self.ltf_config.confirmation_weights['micro_fvg']
+                    if debug_this:
+                        print(f"      ✓ MATCHED! Added {self.ltf_config.confirmation_weights['micro_fvg']} points")
 
         # Check micro Order Block confirmation
         micro_order_blocks = ltf_analysis.get('micro_order_blocks', [])
@@ -290,6 +352,15 @@ class LTFPrecisionEntry:
         Returns:
             Refined signal or None
         """
+        # DEBUG: Track first few refined signals
+        debug_refine = not hasattr(self, '_debug_refine_count')
+        if debug_refine:
+            self._debug_refine_count = 0
+
+        debug_this_refine = self._debug_refine_count < 3
+        if debug_this_refine:
+            self._debug_refine_count += 1
+
         try:
             # Calculate tighter stop loss
             tighter_sl = self.calculate_tighter_stop_loss(signal, ltf_analysis)
@@ -299,9 +370,29 @@ class LTFPrecisionEntry:
             reward = abs(signal.take_profits[0] - signal.price)
             refined_rr = reward / risk if risk > 0 else 0
 
-            # Only proceed if RR improved
-            if refined_rr <= signal.risk_reward:
-                return None
+            if debug_this_refine:
+                print(f"\n  === REFINEMENT DETAIL ===")
+                print(f"  Original SL: ${signal.stop_loss:.2f}, Original R:R: {signal.risk_reward:.2f}")
+                print(f"  Tighter SL: ${tighter_sl:.2f}")
+                print(f"  Risk: ${risk:.2f}, Reward: ${reward:.2f}")
+                print(f"  Refined R:R: {refined_rr:.2f}")
+
+            # FIXED BUG-LTF-RR-001: Maintain minimum 3:1 R:R after refinement
+            # If refined R:R falls below 3.0, use original stop loss instead
+            MIN_RR_THRESHOLD = 3.0
+            final_sl = tighter_sl
+            final_rr = refined_rr
+
+            if refined_rr < MIN_RR_THRESHOLD:
+                if debug_this_refine:
+                    print(f"  ⚠ Refined R:R {refined_rr:.2f} below minimum {MIN_RR_THRESHOLD:.1f}")
+                    print(f"  → Using original SL to maintain R:R")
+                final_sl = signal.stop_loss
+                orig_risk = abs(signal.price - signal.stop_loss)
+                final_rr = reward / orig_risk if orig_risk > 0 else signal.risk_reward
+
+            if debug_this_refine:
+                print(f"  ✓ ACCEPTED: Final R:R {final_rr:.2f}, SL ${final_sl:.2f}")
 
             # Create refined signal
             refined_signal = Signal(
@@ -309,9 +400,9 @@ class LTFPrecisionEntry:
                 signal_type=signal.signal_type,
                 entry_type=f"{signal.entry_type}_LTF_REFINED",
                 price=signal.price,
-                stop_loss=tighter_sl,
+                stop_loss=final_sl,
                 take_profits=signal.take_profits,
-                risk_reward=refined_rr,
+                risk_reward=final_rr,
                 confidence=min(signal.confidence + 0.1, 1.0),  # Boost confidence slightly
                 metadata={
                     **signal.metadata,

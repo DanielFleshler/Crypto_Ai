@@ -3,28 +3,28 @@
 
 # Elliott Wave Detection Parameters
 elliott_wave:
-  # Wave detection thresholds
-  wave1_min_move_percent: 3.0  # Minimum 3% move for Wave 1 detection
+  # Wave detection thresholds (RELAXED for more signal generation)
+  wave1_min_move_percent: 1.5  # REDUCED from 3.0 - Allow smaller Wave 1 moves
   wave2_max_retracement: 0.786  # Maximum 78.6% retracement for Wave 2
   wave2_min_retracement: 0.236  # Minimum 23.6% retracement for Wave 2
-  wave3_break_tolerance: 0.01  # 1% tolerance for Wave 1 high/low break
+  wave3_break_tolerance: 0.02  # INCREASED from 0.01 - More tolerance for Wave 1 break
   wave4_max_retracement: 0.5   # Maximum 50% retracement for Wave 4
   wave4_min_retracement: 0.236  # Minimum 23.6% retracement for Wave 4
-  
-  # Wave validation rules
-  wave2_invalidation_buffer: 0.01  # 1% buffer beyond 78.6% for invalidation
-  wave3_shortest_rule: true  # Enforce "Wave 3 cannot be shortest" rule
-  wave4_territory_constraint: true  # Wave 4 cannot enter Wave 1 territory
-  
-  # Lookback periods
-  wave2_lookback_candles: 50
-  wave3_lookback_candles: 100
-  wave4_lookback_candles: 50
-  wave5_lookback_candles: 50
-  
-  # Structure confirmation
-  require_bos_for_wave1: true  # Require BOS confirmation for Wave 1
-  require_structure_for_wave1: true  # Require structure confirmation for Wave 1
+
+  # Wave validation rules (RELAXED)
+  wave2_invalidation_buffer: 0.02  # INCREASED from 0.01 - More forgiving
+  wave3_shortest_rule: false  # DISABLED - Too restrictive in real markets
+  wave4_territory_constraint: false  # DISABLED - Allow some Wave 4 overlap
+
+  # Lookback periods (EXTENDED for better detection)
+  wave2_lookback_candles: 75  # INCREASED from 50
+  wave3_lookback_candles: 150  # INCREASED from 100
+  wave4_lookback_candles: 75  # INCREASED from 50
+  wave5_lookback_candles: 75  # INCREASED from 50
+
+  # Structure confirmation (RELAXED)
+  require_bos_for_wave1: false  # DISABLED - Too strict, missing valid waves
+  require_structure_for_wave1: false  # DISABLED - Allow waves without strict structure
   
   # ABC Correction Detection
   abc_correction:
@@ -119,10 +119,10 @@ market_structure:
   # Swing point detection
   swing_strength: 2  # Number of candles on each side to confirm swing
   min_swing_distance_percent: 0.5  # Minimum 0.5% distance for swing points
-  
+
   # Structure detection
   lookback_period: 20  # Look back 20 periods for structure analysis
-  min_structures_for_bias: 3  # Minimum 3 structures for bias determination
+  min_structures_for_bias: 2  # REDUCED from 3 - More sensitive bias detection
   
   # Liquidity tracking
   liquidity_level_tracking: true  # Track previous swing highs/lows
@@ -140,6 +140,7 @@ risk_management:
   max_risk_per_trade: 0.02  # Maximum 2% risk per trade
   max_daily_risk: 0.05  # Maximum 5% daily risk
   max_concurrent_positions: 5  # Maximum 5 concurrent positions
+  minimum_rr_ratio: 1.5  # REDUCED from 3.0 - Accept lower R:R ratios
   
   # Volatility adjustment
   atr_period: 14  # ATR calculation period
@@ -174,12 +175,12 @@ risk_management:
     threshold: 0.7  # Block trades if correlation > 70%
     enabled: true  # Enable correlation checks
   
-  # Trade frequency limits
+  # Trade frequency limits (RELAXED to allow more trading)
   frequency_limits:
-    min_time_between_trades_minutes: 30  # Minimum 30 minutes between trades on same pair
-    max_trades_per_day: 10  # Maximum 10 trades per day
-    stop_loss_cooldown_hours: 2  # 2 hour cooldown after stop loss
-    enabled: true  # Enable frequency limits
+    min_time_between_trades_minutes: 15  # REDUCED from 30 - Allow more frequent entries
+    max_trades_per_day: 20  # INCREASED from 10 - Allow more opportunities
+    stop_loss_cooldown_hours: 1  # REDUCED from 2 - Shorter cooldown
+    enabled: true  # Keep enabled for safety
   
   # Trade limits
   trade_limits:
@@ -197,10 +198,10 @@ session_logic:
   london_end: 16
   ny_start: 13
   ny_end: 21
-  
-  # Session preferences
-  prefer_london_ny_overlap: true  # Prefer London/NY overlap for entries
-  avoid_asia_session: true  # Avoid entries during Asia session
+
+  # Session preferences (RELAXED)
+  prefer_london_ny_overlap: false  # DISABLED - Was blocking too many signals
+  avoid_asia_session: true  # Keep this - Asia session is genuinely low quality
   
   # Timezone handling
   default_timezone: "UTC"
@@ -234,11 +235,13 @@ sessions:
   london_end: 16
   ny_start: 13
   ny_end: 21
-  
-  # Session preferences
-  prefer_london_ny_overlap: true  # Prefer London/NY overlap for entries
-  avoid_asia_session: true  # Avoid entries during Asia session
-  
+
+  # Session preferences (RELAXED to allow more trading opportunities)
+  prefer_london_ny_overlap: false  # DISABLED - Was blocking too many signals
+  avoid_asia_session: false  # DISABLED - Allow all sessions for now
+  filter_by_session: false  # DISABLED - Don't filter by session initially
+  optimal_sessions: ["london", "ny", "overlap"]  # For reference only
+
   # Timezone handling
   default_timezone: "UTC"
   exchange_timezone: "UTC"
@@ -261,8 +264,8 @@ timeframes:
 # Entry Confirmation Parameters
 entry_confirmation:
   # Multi-confirmation system
-  min_confirmations: 2  # Minimum 2 confirmations required
-  max_confirmations: 4  # Maximum 4 confirmations to check
+  min_confirmations: 1  # REDUCED from 2 - Allow single confirmation trades
+  max_confirmations: 3  # REDUCED from 4 - Faster processing
   
   # Confirmation types
   confirmation_types:
@@ -405,13 +408,13 @@ logging:
 
 # LTF Precision Entry Refinement
 ltf_precision_entry:
-  # Micro concept detection thresholds
-  micro_fvg_min_gap: 0.05  # Minimum 0.05% gap for micro FVG
-  micro_ote_lookback_days: 3  # Look back 3 days for micro OTE
-  
-  # Analysis window around MTF signals
-  analysis_window_minutes: 30  # 30 minutes before/after signal
-  
+  # Micro concept detection thresholds (RELAXED)
+  micro_fvg_min_gap: 0.02  # REDUCED from 0.05 - Detect smaller FVGs
+  micro_ote_lookback_days: 5  # INCREASED from 3 - Longer lookback
+
+  # Analysis window around MTF signals (EXPANDED)
+  analysis_window_minutes: 60  # INCREASED from 30 - Wider search window
+
   # Confirmation weights for LTF concepts
   confirmation_weights:
     micro_fvg: 0.3
@@ -419,14 +422,14 @@ ltf_precision_entry:
     micro_ote: 0.5
     micro_choch: 0.6
     micro_liquidity_grab: 0.4
-  
-  # Minimum confirmation score to gate MTF signals
-  min_confirmation_score: 0.7
-  
-  # Stop loss refinement parameters
-  atr_sl_multiplier: 1.5  # ATR multiplier for dynamic SL
-  atr_sl_buffer: 0.5  # ATR buffer for structure-based SL
-  price_tolerance_percent: 0.1  # 0.1% tolerance for concept proximity
+
+  # Minimum confirmation score to gate MTF signals (RELAXED)
+  min_confirmation_score: 0.05  # FURTHER REDUCED from 0.1 - Allow more signals
+
+  # Stop loss refinement parameters (RELAXED to avoid over-tightening)
+  atr_sl_multiplier: 2.5  # INCREASED from 1.5 - Wider stops
+  atr_sl_buffer: 1.0  # INCREASED from 0.5 - More buffer
+  price_tolerance_percent: 0.5  # INCREASED from 0.1 - Wider concept matching
 
 # Performance Optimization
 performance:

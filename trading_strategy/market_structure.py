@@ -254,6 +254,7 @@ class MarketStructureDetector:
         Determine current market bias based on recent structures.
 
         Fixes BUG-MS-001: Analyze structure pattern, not price sign
+        Fixes BUG-MS-002: Too strict bias requirements causing NEUTRAL bias
 
         Args:
             structures: List of MarketStructure objects
@@ -262,21 +263,51 @@ class MarketStructureDetector:
             'BULLISH', 'BEARISH', or 'NEUTRAL'
         """
         if not structures:
+            print("  HTF Bias Diagnostic: No structures detected → NEUTRAL")
             return 'NEUTRAL'
 
-        recent_structures = structures[-self.config.min_structures_for_bias:]
+        # FIXED: Use more structures for analysis (look at last 10, not just 3)
+        lookback = min(10, len(structures))
+        recent_structures = structures[-lookback:]
 
-        # CRITICAL FIX: Analyze structure pattern, not price sign
-        bullish_count = sum(1 for s in recent_structures
-                            if s.structure_type == 'BOS' and s.trend_direction == 'BULLISH')
-        bearish_count = sum(1 for s in recent_structures
-                            if s.structure_type == 'BOS' and s.trend_direction == 'BEARISH')
+        # FIXED: Count both BOS and CHoCH, giving more weight to BOS
+        bullish_bos = sum(1.0 for s in recent_structures
+                          if s.structure_type == 'BOS' and s.trend_direction == 'BULLISH')
+        bearish_bos = sum(1.0 for s in recent_structures
+                          if s.structure_type == 'BOS' and s.trend_direction == 'BEARISH')
 
-        if bullish_count > bearish_count:
+        bullish_choch = sum(0.5 for s in recent_structures
+                            if s.structure_type == 'CHoCH' and s.trend_direction == 'BULLISH')
+        bearish_choch = sum(0.5 for s in recent_structures
+                            if s.structure_type == 'CHoCH' and s.trend_direction == 'BEARISH')
+
+        bullish_score = bullish_bos + bullish_choch
+        bearish_score = bearish_bos + bearish_choch
+
+        # Diagnostic logging
+        print(f"  HTF Bias Diagnostic:")
+        print(f"    Total structures: {len(structures)}, Recent: {lookback}")
+        print(f"    Bullish BOS: {bullish_bos:.1f}, CHoCH: {bullish_choch:.1f}, Total: {bullish_score:.1f}")
+        print(f"    Bearish BOS: {bearish_bos:.1f}, CHoCH: {bearish_choch:.1f}, Total: {bearish_score:.1f}")
+
+        # AGGRESSIVE FIX: Use ANY directional bias if scores differ
+        # Even a small difference is better than NEUTRAL
+        if bullish_score > bearish_score and bullish_score >= 0.5:
+            print(f"    → BULLISH (score {bullish_score:.1f} > {bearish_score:.1f})")
             return 'BULLISH'
-        elif bearish_count > bullish_count:
+        elif bearish_score > bullish_score and bearish_score >= 0.5:
+            print(f"    → BEARISH (score {bearish_score:.1f} > {bullish_score:.1f})")
             return 'BEARISH'
+        elif bullish_score > 0 or bearish_score > 0:
+            # If we have ANY structures, pick the dominant direction even if equal
+            if bullish_score >= bearish_score:
+                print(f"    → BULLISH (fallback: {bullish_score:.1f} >= {bearish_score:.1f})")
+                return 'BULLISH'
+            else:
+                print(f"    → BEARISH (fallback: {bearish_score:.1f} > {bullish_score:.1f})")
+                return 'BEARISH'
         else:
+            print(f"    → NEUTRAL (no structures detected)")
             return 'NEUTRAL'
 
     def track_liquidity_levels(self, df: pd.DataFrame, swing_df: pd.DataFrame) -> List[LiquidityLevel]:

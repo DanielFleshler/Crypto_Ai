@@ -163,31 +163,57 @@ class ICTEntries:
             if not self._has_structure_confirmation(fvg.timestamp, mtf_data):
                 continue
 
-            # Determine entry direction and calculate structure-based stops/TPs
-            if fvg.is_bullish():
-                signal_type = 'BUY'
-                entry_price = fvg.start_price
+            # FIXED BUG-ICT-COUNTER-001: Counter-trend FVG logic
+            # In bearish market, ALL FVGs are potential SELL setups (rejection or continuation)
+            # In bullish market, ALL FVGs are potential BUY setups (rejection or continuation)
 
-                # Structure-based stop loss: below FVG with small buffer
+            if htf_bias == 'BEARISH':
+                # BEARISH MARKET: Trade downtrend
+                signal_type = 'SELL'
+                if fvg.is_bullish():
+                    # Bullish FVG in bearish market = Retracement/resistance zone
+                    # Enter SELL at top of FVG (expecting rejection)
+                    entry_price = fvg.end_price
+                else:
+                    # Bearish FVG in bearish market = Continuation zone
+                    entry_price = fvg.end_price
+
                 stop_loss = self._calculate_structure_based_stop_loss(
                     entry_price, signal_type, swing_points, fvgs, order_blocks, structures
                 )
-
-                # Structure-based take profits
                 take_profits = self._calculate_structure_based_tps(
                     entry_price, signal_type, swing_points, fvgs, order_blocks, structures
                 )
 
-            else:  # Bearish FVG
-                signal_type = 'SELL'
-                entry_price = fvg.end_price
+            elif htf_bias == 'BULLISH':
+                # BULLISH MARKET: Trade uptrend
+                signal_type = 'BUY'
+                if fvg.is_bearish():
+                    # Bearish FVG in bullish market = Retracement/support zone
+                    # Enter BUY at bottom of FVG (expecting rejection)
+                    entry_price = fvg.start_price
+                else:
+                    # Bullish FVG in bullish market = Continuation zone
+                    entry_price = fvg.start_price
 
-                # Structure-based stop loss: above FVG with small buffer
                 stop_loss = self._calculate_structure_based_stop_loss(
                     entry_price, signal_type, swing_points, fvgs, order_blocks, structures
                 )
+                take_profits = self._calculate_structure_based_tps(
+                    entry_price, signal_type, swing_points, fvgs, order_blocks, structures
+                )
 
-                # Structure-based take profits
+            else:  # NEUTRAL - use original logic
+                if fvg.is_bullish():
+                    signal_type = 'BUY'
+                    entry_price = fvg.start_price
+                else:
+                    signal_type = 'SELL'
+                    entry_price = fvg.end_price
+
+                stop_loss = self._calculate_structure_based_stop_loss(
+                    entry_price, signal_type, swing_points, fvgs, order_blocks, structures
+                )
                 take_profits = self._calculate_structure_based_tps(
                     entry_price, signal_type, swing_points, fvgs, order_blocks, structures
                 )
@@ -258,31 +284,48 @@ class ICTEntries:
             if not self._has_additional_pattern_confirmation(ob, mtf_data):
                 continue
 
-            # Determine entry direction and calculate structure-based stops/TPs
-            if ob.is_bullish():
-                signal_type = 'BUY'
-                entry_price = ob.start_price
+            # FIXED BUG-ICT-COUNTER-003: Counter-trend Order Block logic
+            if htf_bias == 'BEARISH':
+                signal_type = 'SELL'
+                if ob.is_bullish():
+                    # Bullish OB in bearish market = Resistance zone
+                    entry_price = ob.end_price
+                else:
+                    entry_price = ob.end_price
 
-                # Structure-based stop loss: below OB with small buffer
                 stop_loss = self._calculate_structure_based_stop_loss(
                     entry_price, signal_type, swing_points, fvgs, order_blocks, structures
                 )
-
-                # Structure-based take profits
                 take_profits = self._calculate_structure_based_tps(
                     entry_price, signal_type, swing_points, fvgs, order_blocks, structures
                 )
 
-            else:  # Bearish OB
-                signal_type = 'SELL'
-                entry_price = ob.end_price
+            elif htf_bias == 'BULLISH':
+                signal_type = 'BUY'
+                if ob.is_bearish():
+                    # Bearish OB in bullish market = Support zone
+                    entry_price = ob.start_price
+                else:
+                    entry_price = ob.start_price
 
-                # Structure-based stop loss: above OB with small buffer
                 stop_loss = self._calculate_structure_based_stop_loss(
                     entry_price, signal_type, swing_points, fvgs, order_blocks, structures
                 )
+                take_profits = self._calculate_structure_based_tps(
+                    entry_price, signal_type, swing_points, fvgs, order_blocks, structures
+                )
 
-                # Structure-based take profits
+            else:  # NEUTRAL
+                if ob.is_bullish():
+                    signal_type = 'BUY'
+                    entry_price = ob.start_price
+                else:
+                    signal_type = 'SELL'
+                    entry_price = ob.end_price
+
+                stop_loss = self._calculate_structure_based_stop_loss(
+                    entry_price, signal_type, swing_points, fvgs, order_blocks, structures
+                )
                 take_profits = self._calculate_structure_based_tps(
                     entry_price, signal_type, swing_points, fvgs, order_blocks, structures
                 )
@@ -354,31 +397,48 @@ class ICTEntries:
             if not self._has_ote_confluence(ote, mtf_data):
                 continue
 
-            # Determine entry direction and calculate structure-based stops/TPs
-            if ote.is_bullish():
-                signal_type = 'BUY'
-                entry_price = ote.start_price
+            # FIXED BUG-ICT-COUNTER-004: Counter-trend OTE logic
+            if htf_bias == 'BEARISH':
+                signal_type = 'SELL'
+                if ote.is_bullish():
+                    # Bullish OTE in bearish market = Retracement resistance
+                    entry_price = ote.end_price
+                else:
+                    entry_price = ote.end_price
 
-                # Structure-based stop loss: below OTE zone with small buffer
                 stop_loss = self._calculate_structure_based_stop_loss(
                     entry_price, signal_type, swing_points, fvgs, order_blocks, structures
                 )
-
-                # Structure-based take profits
                 take_profits = self._calculate_structure_based_tps(
                     entry_price, signal_type, swing_points, fvgs, order_blocks, structures
                 )
 
-            else:  # Bearish OTE
-                signal_type = 'SELL'
-                entry_price = ote.end_price
+            elif htf_bias == 'BULLISH':
+                signal_type = 'BUY'
+                if ote.is_bearish():
+                    # Bearish OTE in bullish market = Retracement support
+                    entry_price = ote.start_price
+                else:
+                    entry_price = ote.start_price
 
-                # Structure-based stop loss: above OTE zone with small buffer
                 stop_loss = self._calculate_structure_based_stop_loss(
                     entry_price, signal_type, swing_points, fvgs, order_blocks, structures
                 )
+                take_profits = self._calculate_structure_based_tps(
+                    entry_price, signal_type, swing_points, fvgs, order_blocks, structures
+                )
 
-                # Structure-based take profits
+            else:  # NEUTRAL
+                if ote.is_bullish():
+                    signal_type = 'BUY'
+                    entry_price = ote.start_price
+                else:
+                    signal_type = 'SELL'
+                    entry_price = ote.end_price
+
+                stop_loss = self._calculate_structure_based_stop_loss(
+                    entry_price, signal_type, swing_points, fvgs, order_blocks, structures
+                )
                 take_profits = self._calculate_structure_based_tps(
                     entry_price, signal_type, swing_points, fvgs, order_blocks, structures
                 )
@@ -519,16 +579,15 @@ class ICTEntries:
         return False
 
     def _is_htf_bias_aligned(self, concept: ICTConcept, htf_bias: str) -> bool:
-        """Check if concept is aligned with HTF bias."""
-        if htf_bias == 'NEUTRAL':
-            return True
+        """
+        Check if concept is aligned with HTF bias.
 
-        if htf_bias == 'BULLISH' and concept.is_bullish():
-            return True
-        elif htf_bias == 'BEARISH' and concept.is_bearish():
-            return True
-
-        return False
+        FIXED BUG-ICT-COUNTER-002: Don't filter concepts by type
+        All FVGs are potential trading opportunities - we use HTF bias
+        to determine signal direction (BUY/SELL) in the entry logic instead.
+        """
+        # Allow all concepts through - direction is determined in entry logic
+        return True
 
     def _is_price_in_fvg_zone(self, df: pd.DataFrame, fvg: ICTConcept) -> bool:
         """Check if current price is in FVG zone."""
