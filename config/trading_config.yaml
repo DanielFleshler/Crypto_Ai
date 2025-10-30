@@ -140,7 +140,7 @@ risk_management:
   max_risk_per_trade: 0.02  # Maximum 2% risk per trade
   max_daily_risk: 0.05  # Maximum 5% daily risk
   max_concurrent_positions: 5  # Maximum 5 concurrent positions
-  minimum_rr_ratio: 1.5  # REDUCED from 3.0 - Accept lower R:R ratios
+  minimum_rr_ratio: 2.0  # FIXED: Minimum 2:1 R:R - was too low at 1.5
   
   # Volatility adjustment
   atr_period: 14  # ATR calculation period
@@ -408,28 +408,31 @@ logging:
 
 # LTF Precision Entry Refinement
 ltf_precision_entry:
-  # Micro concept detection thresholds (RELAXED)
-  micro_fvg_min_gap: 0.02  # REDUCED from 0.05 - Detect smaller FVGs
-  micro_ote_lookback_days: 5  # INCREASED from 3 - Longer lookback
+  # Micro concept detection thresholds (VERY RELAXED - Allow more micro-level confirmations)
+  micro_fvg_min_gap: 0.005  # ULTRA-RELAXED from 0.02 - Detect tiny 0.5% FVGs on LTF
+  micro_ote_lookback_days: 7  # INCREASED from 5 - Even longer lookback for OTE zones
 
-  # Analysis window around MTF signals (EXPANDED)
-  analysis_window_minutes: 60  # INCREASED from 30 - Wider search window
+  # Analysis window around MTF signals (VERY EXPANDED)
+  analysis_window_minutes: 90  # INCREASED from 60 - Much wider search window
 
-  # Confirmation weights for LTF concepts
+  # Confirmation weights for LTF concepts (SIGNIFICANTLY REDUCED)
   confirmation_weights:
-    micro_fvg: 0.3
-    micro_ob: 0.4
-    micro_ote: 0.5
-    micro_choch: 0.6
-    micro_liquidity_grab: 0.4
+    micro_fvg: 0.15         # REDUCED from 0.3 - Allow micro FVG alone to contribute
+    micro_ob: 0.20          # REDUCED from 0.4 - Allow micro OB alone to contribute
+    micro_ote: 0.25         # REDUCED from 0.5 - Allow micro OTE alone to contribute
+    micro_choch: 0.30       # REDUCED from 0.6 - Still valuable but not required
+    micro_liquidity_grab: 0.20  # REDUCED from 0.4 - Allow micro liquidity grab alone
 
-  # Minimum confirmation score to gate MTF signals (RELAXED)
-  min_confirmation_score: 0.05  # FURTHER REDUCED from 0.1 - Allow more signals
-
+  # Minimum confirmation score to gate MTF signals (ULTRA-RELAXED)
+  min_confirmation_score: 0.01  # DRASTICALLY REDUCED from 0.05 - Any single micro-confirmation passes
+  
+  # Alternative: Allow entries with NO LTF confirmation (quality filter only)
+  allow_no_ltf_confirmation: true  # NEW: Allow MTF signals through even without LTF confirmation
+  
   # Stop loss refinement parameters (RELAXED to avoid over-tightening)
   atr_sl_multiplier: 2.5  # INCREASED from 1.5 - Wider stops
   atr_sl_buffer: 1.0  # INCREASED from 0.5 - More buffer
-  price_tolerance_percent: 0.5  # INCREASED from 0.1 - Wider concept matching
+  price_tolerance_percent: 1.0  # INCREASED from 0.5 - Much wider concept matching tolerance
 
 # Performance Optimization
 performance:

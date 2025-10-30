@@ -178,6 +178,7 @@ class RiskManagementConfig:
     max_risk_per_trade: float
     max_daily_risk: float
     max_concurrent_positions: int
+    minimum_rr_ratio: float  # ADDED: Minimum risk/reward ratio
     atr_period: int
     volatility_factor: bool
     slippage_percent: float
@@ -257,6 +258,9 @@ class LTFConfig:
     atr_sl_multiplier: float
     atr_sl_buffer: float
     price_tolerance_percent: float
+    
+    # Allow signals without LTF confirmation (bypass mode) - must be last (has default)
+    allow_no_ltf_confirmation: bool = False
 
 
 @dataclass
@@ -482,6 +486,7 @@ class ConfigurationLoader:
             max_risk_per_trade=config["max_risk_per_trade"],
             max_daily_risk=config["max_daily_risk"],
             max_concurrent_positions=config["max_concurrent_positions"],
+            minimum_rr_ratio=config.get("minimum_rr_ratio", 2.0),  # ADDED: Minimum R:R ratio
             atr_period=config["atr_period"],
             volatility_factor=config["volatility_factor"],
             slippage_percent=config["slippage_percent"],
@@ -560,6 +565,7 @@ class ConfigurationLoader:
             analysis_window_minutes=config["analysis_window_minutes"],
             confirmation_weights=config["confirmation_weights"],
             min_confirmation_score=config["min_confirmation_score"],
+            allow_no_ltf_confirmation=config.get("allow_no_ltf_confirmation", False),
             atr_sl_multiplier=config["atr_sl_multiplier"],
             atr_sl_buffer=config["atr_sl_buffer"],
             price_tolerance_percent=config["price_tolerance_percent"]

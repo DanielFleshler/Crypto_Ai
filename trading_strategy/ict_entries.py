@@ -102,8 +102,11 @@ class ICTEntries:
             reward = abs(take_profits[0] - entry_price) if take_profits else 0
             risk_reward = reward / risk if risk > 0 else 0
 
-            # Only create signal if RR >= 1:3
-            if risk_reward >= 3.0:
+            # FIXED BUG-RR-001: Use minimum_rr_ratio from config (was hardcoded to 3.0)
+            min_rr = self.config_loader.get_risk_management_config().minimum_rr_ratio
+            
+            # Only create signal if RR meets minimum requirement
+            if risk_reward >= min_rr:
                 signal = Signal(
                     timestamp=grab.timestamp,
                     signal_type=signal_type,
@@ -223,8 +226,11 @@ class ICTEntries:
             reward = abs(take_profits[0] - entry_price) if take_profits else 0
             risk_reward = reward / risk if risk > 0 else 0
 
-            # Only create signal if RR >= 1:3
-            if risk_reward >= 3.0:
+            # FIXED BUG-RR-002: Use minimum_rr_ratio from config (was hardcoded to 3.0)
+            min_rr = self.config_loader.get_risk_management_config().minimum_rr_ratio
+            
+            # Only create signal if RR meets minimum requirement
+            if risk_reward >= min_rr:
                 signal = Signal(
                     timestamp=fvg.timestamp,
                     signal_type=signal_type,
@@ -335,8 +341,11 @@ class ICTEntries:
             reward = abs(take_profits[0] - entry_price) if take_profits else 0
             risk_reward = reward / risk if risk > 0 else 0
 
-            # Only create signal if RR >= 1:3
-            if risk_reward >= 3.0:
+            # FIXED BUG-RR-003: Use minimum_rr_ratio from config (was hardcoded to 3.0)
+            min_rr = self.config_loader.get_risk_management_config().minimum_rr_ratio
+            
+            # Only create signal if RR meets minimum requirement
+            if risk_reward >= min_rr:
                 signal = Signal(
                     timestamp=ob.timestamp,
                     signal_type=signal_type,
@@ -448,8 +457,11 @@ class ICTEntries:
             reward = abs(take_profits[0] - entry_price) if take_profits else 0
             risk_reward = reward / risk if risk > 0 else 0
 
-            # Only create signal if RR >= 1:3
-            if risk_reward >= 3.0:
+            # FIXED BUG-RR-004: Use minimum_rr_ratio from config (was hardcoded to 3.0)
+            min_rr = self.config_loader.get_risk_management_config().minimum_rr_ratio
+            
+            # Only create signal if RR meets minimum requirement
+            if risk_reward >= min_rr:
                 signal = Signal(
                     timestamp=ote.timestamp,
                     signal_type=signal_type,
@@ -539,8 +551,11 @@ class ICTEntries:
             reward = abs(take_profits[0] - entry_price) if take_profits else 0
             risk_reward = reward / risk if risk > 0 else 0
 
-            # Only create signal if RR >= 1:3
-            if risk_reward >= 3.0:
+            # FIXED BUG-RR-005: Use minimum_rr_ratio from config (was hardcoded to 3.0)
+            min_rr = self.config_loader.get_risk_management_config().minimum_rr_ratio
+            
+            # Only create signal if RR meets minimum requirement
+            if risk_reward >= min_rr:
                 signal = Signal(
                     timestamp=bb.timestamp,
                     signal_type=signal_type,
@@ -727,6 +742,7 @@ class ICTEntries:
                                         swing_points: pd.DataFrame, structures: List) -> Optional[float]:
         """
         Find the nearest opposite liquidity level (swing high for sells, swing low for buys).
+        FIXED: Added minimum TP distance requirement to ensure adequate reward.
 
         Args:
             entry_price: Entry price
@@ -737,6 +753,9 @@ class ICTEntries:
         Returns:
             Nearest opposite liquidity price or None
         """
+        # FIXED BUG-TP-001: Enforce minimum take profit distance
+        MIN_TP_DISTANCE_PERCENT = 0.025  # Minimum 2.5% profit per trade
+        
         if signal_type == 'BUY':
             # Look for swing highs above entry
             swing_highs = swing_points[swing_points['swing_high']]
@@ -744,12 +763,36 @@ class ICTEntries:
                 # Find swing highs above entry price
                 highs_above = swing_highs[swing_highs['swing_high_price'] > entry_price]
                 if not highs_above.empty:
-                    return highs_above['swing_high_price'].min()
+                    nearest_high = highs_above['swing_high_price'].min()
+                    
+                    # FIXED: Check if TP distance is adequate
+                    tp_distance_pct = (nearest_high - entry_price) / entry_price
+                    
+                    if tp_distance_pct < MIN_TP_DISTANCE_PERCENT:
+                        # TP is too close - look for next swing high or use minimum distance
+                        # Find next swing high beyond minimum distance
+                        adequate_highs = highs_above[
+                            (highs_above['swing_high_price'] - entry_price) / entry_price >= MIN_TP_DISTANCE_PERCENT
+                        ]
+                        
+                        if not adequate_highs.empty:
+                            return adequate_highs['swing_high_price'].min()
+                        else:
+                            # No adequate swing high found - use minimum distance
+                            return entry_price * (1.0 + MIN_TP_DISTANCE_PERCENT)
+                    else:
+                        return nearest_high
 
             # Fallback: look in structures for HH/LH
             for structure in structures:
                 if structure.structure_type in ['HH', 'LH'] and structure.price > entry_price:
-                    return structure.price
+                    tp_distance_pct = (structure.price - entry_price) / entry_price
+                    
+                    if tp_distance_pct >= MIN_TP_DISTANCE_PERCENT:
+                        return structure.price
+            
+            # If no adequate structure found, use minimum distance
+            return entry_price * (1.0 + MIN_TP_DISTANCE_PERCENT)
 
         else:  # SELL
             # Look for swing lows below entry
@@ -758,12 +801,36 @@ class ICTEntries:
                 # Find swing lows below entry price
                 lows_below = swing_lows[swing_lows['swing_low_price'] < entry_price]
                 if not lows_below.empty:
-                    return lows_below['swing_low_price'].max()
+                    nearest_low = lows_below['swing_low_price'].max()
+                    
+                    # FIXED: Check if TP distance is adequate
+                    tp_distance_pct = (entry_price - nearest_low) / entry_price
+                    
+                    if tp_distance_pct < MIN_TP_DISTANCE_PERCENT:
+                        # TP is too close - look for next swing low or use minimum distance
+                        # Find next swing low beyond minimum distance
+                        adequate_lows = lows_below[
+                            (entry_price - lows_below['swing_low_price']) / entry_price >= MIN_TP_DISTANCE_PERCENT
+                        ]
+                        
+                        if not adequate_lows.empty:
+                            return adequate_lows['swing_low_price'].max()
+                        else:
+                            # No adequate swing low found - use minimum distance
+                            return entry_price * (1.0 - MIN_TP_DISTANCE_PERCENT)
+                    else:
+                        return nearest_low
 
             # Fallback: look in structures for LL/HL
             for structure in structures:
                 if structure.structure_type in ['LL', 'HL'] and structure.price < entry_price:
-                    return structure.price
+                    tp_distance_pct = (entry_price - structure.price) / entry_price
+                    
+                    if tp_distance_pct >= MIN_TP_DISTANCE_PERCENT:
+                        return structure.price
+            
+            # If no adequate structure found, use minimum distance
+            return entry_price * (1.0 - MIN_TP_DISTANCE_PERCENT)
 
         return None
 
@@ -848,6 +915,7 @@ class ICTEntries:
                                              swing_points: pd.DataFrame, structures: List) -> Optional[float]:
         """
         Find the nearest opposite structure level for stop loss.
+        FIXED: Added buffer beyond swing point and maximum distance limit.
 
         Args:
             entry_price: Entry price
@@ -858,6 +926,12 @@ class ICTEntries:
         Returns:
             Nearest opposite structure level or None
         """
+        # FIXED BUG-SL-001: Add buffer beyond swing point to avoid wick stops
+        SL_BUFFER_PERCENT = 0.003  # 0.3% buffer beyond swing point
+        
+        # FIXED BUG-SL-002: Enforce maximum stop loss distance
+        MAX_SL_DISTANCE_PERCENT = 0.015  # Maximum 1.5% risk per trade
+        
         if signal_type == 'BUY':
             # Look for swing lows below entry
             swing_lows = swing_points[swing_points['swing_low']]
@@ -865,12 +939,27 @@ class ICTEntries:
                 # Find swing lows below entry price
                 lows_below = swing_lows[swing_lows['swing_low_price'] < entry_price]
                 if not lows_below.empty:
-                    return lows_below['swing_low_price'].max()
+                    nearest_low = lows_below['swing_low_price'].max()
+                    
+                    # FIXED: Check if stop distance is reasonable
+                    stop_distance_pct = (entry_price - nearest_low) / entry_price
+                    
+                    if stop_distance_pct > MAX_SL_DISTANCE_PERCENT:
+                        # Stop is too far - use maximum distance instead
+                        return entry_price * (1.0 - MAX_SL_DISTANCE_PERCENT)
+                    else:
+                        # FIXED: Add buffer beyond swing low to avoid wick stops
+                        return nearest_low * (1.0 - SL_BUFFER_PERCENT)
 
             # Fallback: look in structures for LL/HL
             for structure in structures:
                 if structure.structure_type in ['LL', 'HL'] and structure.price < entry_price:
-                    return structure.price
+                    stop_distance_pct = (entry_price - structure.price) / entry_price
+                    
+                    if stop_distance_pct > MAX_SL_DISTANCE_PERCENT:
+                        return entry_price * (1.0 - MAX_SL_DISTANCE_PERCENT)
+                    else:
+                        return structure.price * (1.0 - SL_BUFFER_PERCENT)
 
         else:  # SELL
             # Look for swing highs above entry
@@ -879,12 +968,27 @@ class ICTEntries:
                 # Find swing highs above entry price
                 highs_above = swing_highs[swing_highs['swing_high_price'] > entry_price]
                 if not highs_above.empty:
-                    return highs_above['swing_high_price'].min()
+                    nearest_high = highs_above['swing_high_price'].min()
+                    
+                    # FIXED: Check if stop distance is reasonable
+                    stop_distance_pct = (nearest_high - entry_price) / entry_price
+                    
+                    if stop_distance_pct > MAX_SL_DISTANCE_PERCENT:
+                        # Stop is too far - use maximum distance instead
+                        return entry_price * (1.0 + MAX_SL_DISTANCE_PERCENT)
+                    else:
+                        # FIXED: Add buffer beyond swing high to avoid wick stops
+                        return nearest_high * (1.0 + SL_BUFFER_PERCENT)
 
             # Fallback: look in structures for HH/LH
             for structure in structures:
                 if structure.structure_type in ['HH', 'LH'] and structure.price > entry_price:
-                    return structure.price
+                    stop_distance_pct = (structure.price - entry_price) / entry_price
+                    
+                    if stop_distance_pct > MAX_SL_DISTANCE_PERCENT:
+                        return entry_price * (1.0 + MAX_SL_DISTANCE_PERCENT)
+                    else:
+                        return structure.price * (1.0 + SL_BUFFER_PERCENT)
 
         return None
 
