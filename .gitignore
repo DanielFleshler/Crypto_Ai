@@ -48,9 +48,7 @@ htmlcov/
 *.cover
 
 # Data
-data/
-data/temp/
-data/cache/
+data/raw
 *.csv.gz
 *.parquet.gz
 
