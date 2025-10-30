@@ -268,6 +268,9 @@ class BacktestEngine:
         entry_price = signal.price
         initial_qty = position_state.entry_qty
         remaining_qty = position_state.remaining_qty
+        
+        # CRITICAL FIX: Save original stop loss before it gets modified
+        original_stop_loss = signal.stop_loss
 
         total_pnl = 0
         exit_price = None
@@ -281,9 +284,10 @@ class BacktestEngine:
             high, low = candle['high'], candle['low']
             timestamp = ohlc.index[j]
 
-            # Check stop loss
+            # Check stop loss (using current stop level which may have been moved)
             if self._is_stop_loss_hit(signal, high, low):
                 # Apply slippage to get realistic execution price
+                # Use current signal.stop_loss which may have been moved to BE or TP1
                 slippage_adjusted_price = self._get_slippage_adjusted_stop_price(signal, signal.stop_loss)
                 pnl = self._calculate_pnl(signal, entry_price, slippage_adjusted_price, remaining_qty)
                 total_pnl += pnl
@@ -347,7 +351,7 @@ class BacktestEngine:
             'entry_type': signal.entry_type,
             'signal_type': signal.signal_type,
             'entry_price': entry_price,
-            'stop_loss': signal.stop_loss,  # CRITICAL FIX: Include stop_loss for risk calculation
+            'stop_loss': original_stop_loss,  # CRITICAL FIX: Use original stop loss, not the modified one
             'exit_price': exit_price,
             'exit_reason': exit_reason,
             'quantity': initial_qty,

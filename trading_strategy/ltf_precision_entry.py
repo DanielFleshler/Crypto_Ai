@@ -85,9 +85,18 @@ class LTFPrecisionEntry:
             # Get LTF analysis around signal timestamp
             ltf_analysis = self._get_ltf_analysis_around_signal(ltf_data, signal)
 
+            # Check if we should allow signals without LTF analysis
+            allow_no_confirmation = getattr(self.ltf_config, 'allow_no_ltf_confirmation', False)
+            
             if not ltf_analysis:
                 if idx < 5:
                     print(f"  ✗ No LTF analysis available")
+                
+                # If we allow signals without LTF confirmation, pass through the original signal
+                if allow_no_confirmation:
+                    if idx < 5:
+                        print(f"  ⚠ Passing through without LTF analysis (allow_no_ltf_confirmation=true)")
+                    refined_signals.append(signal)
                 continue
 
             if idx < 5:  # Debug first 5 signals
@@ -108,11 +117,19 @@ class LTFPrecisionEntry:
                 print(f"    Required: {ltf_confirmation.get('min_score_required', 0):.2f}")
                 print(f"    Result: {'✓ PASS' if ltf_confirmation['confirmed'] else '✗ REJECT'}")
 
-            if ltf_confirmation['confirmed']:
+            # Check if we should allow signals without LTF confirmation
+            allow_no_confirmation = getattr(self.ltf_config, 'allow_no_ltf_confirmation', False)
+            
+            if ltf_confirmation['confirmed'] or allow_no_confirmation:
                 # Refine signal with LTF data
                 refined_signal = self._refine_signal_with_ltf(signal, ltf_analysis, ltf_confirmation)
                 if refined_signal:
                     refined_signals.append(refined_signal)
+                elif allow_no_confirmation:
+                    # If no LTF refinement possible but we allow no confirmation, pass through original signal
+                    if idx < 5:
+                        print(f"  ⚠ No LTF refinement, but passing through (allow_no_ltf_confirmation=true)")
+                    refined_signals.append(signal)
 
         return refined_signals
 

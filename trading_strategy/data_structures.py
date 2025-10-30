@@ -47,6 +47,22 @@ class Signal:
 
         if not 0 <= self.confidence <= 1:
             raise ValueError(f"Invalid confidence: {self.confidence}. Must be between 0 and 1")
+        
+        # DIAGNOSTIC: Log if stop loss or take profits seem inverted (but don't reject)
+        if self.signal_type == 'BUY':
+            if self.stop_loss >= self.price:
+                print(f"⚠️  WARNING: BUY signal has stop_loss ({self.stop_loss:.2f}) >= entry ({self.price:.2f})")
+                print(f"   Entry type: {self.entry_type}, TPs: {self.take_profits}")
+            for i, tp in enumerate(self.take_profits):
+                if tp <= self.price:
+                    print(f"⚠️  WARNING: BUY signal TP[{i}] ({tp:.2f}) <= entry ({self.price:.2f})")
+        else:  # SELL
+            if self.stop_loss <= self.price:
+                print(f"⚠️  WARNING: SELL signal has stop_loss ({self.stop_loss:.2f}) <= entry ({self.price:.2f})")
+                print(f"   Entry type: {self.entry_type}, TPs: {self.take_profits}")
+            for i, tp in enumerate(self.take_profits):
+                if tp >= self.price:
+                    print(f"⚠️  WARNING: SELL signal TP[{i}] ({tp:.2f}) >= entry ({self.price:.2f})")
 
     def is_bullish(self) -> bool:
         """Check if signal is bullish."""

@@ -56,17 +56,9 @@ class UnifiedBacktester:
         print("="*70)
         print()
         
-        # Initialize strategy and backtester
-        strategy = TradingStrategy(
-            data_loader=self.data_loader,
-            pair=pair,
-            start_date=start_date,
-            end_date=end_date
-        )
-        
+        # Initialize backtester
         backtester = BacktestEngine(
-            trading_strategy=strategy,
-            data_loader=self.data_loader,
+            base_path=str(self.base_path),
             initial_balance=self.initial_balance
         )
         
@@ -74,8 +66,7 @@ class UnifiedBacktester:
         result = backtester.run_backtest(
             pair=pair,
             start_date=start_date,
-            end_date=end_date,
-            timeframe='1h'
+            end_date=end_date
         )
         
         # Analyze results

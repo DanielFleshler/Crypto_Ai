@@ -1,4 +1,0 @@
-"""
-Backtesting scripts and utilities.
-"""
-
