@@ -47,29 +47,58 @@ htmlcov/
 .hypothesis/
 *.cover
 
-# Data
-data/raw
-*.csv.gz
-*.parquet.gz
+# Cache
+.cache/
+*.cache
 
-# Results
-results/backtests/*.json
-results/*.json
+# Data files (exclude all data for portfolio - too large)
+data/
+*.csv
+*.csv.gz
+*.parquet
+*.parquet.gz
+*.feather
+*.h5
+*.hdf5
+
+# Optionally include sample data (uncomment if needed)
+# !data/sample/
+# !data/examples/
+
+# Results and logs (generated files)
+results/
 *.log
+*.json.gz
+
+# Backtest results
+backtest_results_*.json
+realistic_backtest_results_*.json
+*_backtest_*.json
+validation_output.log
 
 # Documentation builds
 docs/_build/
 site/
 
-# Environment variables
+# Environment variables and secrets
 .env
 .env.local
+.env.*.local
+*.key
+*.pem
+credentials.json
+secrets.yaml
 
-# Backtest results (keep structure, ignore content)
-backtest_results_*.json
-realistic_backtest_results_*.json
-
-# Misc
-.zsh_history
+# OS files
+.DS_Store
+Thumbs.db
 *.bak
 *.tmp
+*.swp
+.zsh_history
+
+# Large output files
+*.zip
+*.tar.gz
+*.pkl
+*.pickle
