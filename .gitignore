@@ -76,6 +76,11 @@ realistic_backtest_results_*.json
 *_backtest_*.json
 validation_output.log
 
+# Portfolio: Exclude test/validation files (keep only core logic)
+PRODUCTION_VALIDATION_SUITE.py
+pytest.ini
+requirements.txt
+
 # Documentation builds
 docs/_build/
 site/
