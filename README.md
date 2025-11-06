@@ -29,7 +29,6 @@ This trading system uses advanced technical analysis methods including:
 .
 ├── backtest.py                      # Unified backtesting interface
 ├── backtester.py                    # Core backtesting engine
-├── PRODUCTION_VALIDATION_SUITE.py   # Pre-production validation tests
 ├── config/                          # Configuration files
 │   ├── pairs.yaml                   # Trading pairs configuration
 │   ├── timeframes.yaml              # Timeframe settings
@@ -46,9 +45,6 @@ This trading system uses advanced technical analysis methods including:
 │   ├── market_structure.py          # Market structure analysis
 │   ├── regime_adaptive_scoring.py   # Regime-based signal scoring
 │   └── trading_strategy.py          # Main strategy orchestration
-├── data/                            # Market data directory
-├── results/                         # Backtest results output
-└── requirements.txt                 # Python dependencies
 ```
 
 ## Configuration
